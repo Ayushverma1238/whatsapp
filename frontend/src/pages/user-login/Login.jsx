@@ -166,6 +166,8 @@ const Login = () => {
     }
       if (response.status === "success") {
         toast.success("OTP verify successfully");
+        const token = response?.data?.token;
+        localStorage.setItem('auth_token', token)
         const user = response.data?.user;
         if (user?.username && user?.profilePicture) {
           setUser(user);

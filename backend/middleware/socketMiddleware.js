@@ -1,7 +1,16 @@
 const jwt = require("jsonwebtoken");
 const response = require("../utils/responseHandler");
 
-const authMiddleware = (req, res, next) => {
+const socketMiddleware = (socket, next) => {
+    
+    const authHeader = req.headers['authorization']
+    
+
+    const token = socket.handShake.auth?.token || socket.handshake.headers['authorization']?.split(' ')[1];
+
+    if(!token){
+      return next(new Error("Unauthorized access. authorized token missing"))
+    }
   try {
     // const token = req.cookies.auth_token;
 
@@ -9,12 +18,6 @@ const authMiddleware = (req, res, next) => {
     //   return response(res, 401, "Unauthorized access");
     // }
 
-    const authHeader = req.headers['authorization']
-    if(!authHeader || !authHeader.startsWith("Bearer")){
-      return response(res, 401, "Unauthorized access. authorized token missing"); 
-    }
-
-    const token = authHeader.split(' ')[1];
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
@@ -30,4 +33,4 @@ const authMiddleware = (req, res, next) => {
   }
 };
 
-module.exports = authMiddleware;
+module.exports = socketMiddleware;

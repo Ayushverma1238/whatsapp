@@ -2,6 +2,7 @@ const { Server } = require("socket.io");
 const User = require("../models/User");
 const Message = require("../models/Message");
 const handleVideoCallEvents = require("./video-call-events");
+const socketMiddleware = require("../middleware/socketMiddleware");
 
 // map to store online users -> userId socketId
 
@@ -17,6 +18,9 @@ const initilizeSocket = (server) => {
     },
     pingTimeout: 60000,
   });
+
+  io.use(socketMiddleware)
+  
 
   io.on("connection", (socket) => {
     console.log("User connected: ", socket.id);

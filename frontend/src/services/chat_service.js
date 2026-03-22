@@ -3,6 +3,8 @@ import useUserStore from '../store/useUserStore';
 
 let socket = null;
 
+const token = localStorage.getItem("auth_token")
+
 export const initializeSocket = () => {
     // 1. Singleton check
     if (socket) return socket;
@@ -18,7 +20,8 @@ export const initializeSocket = () => {
 
     // 3. Connect with fixed transport typo
     socket = io(BACKEND_URL, {
-        withCredentials: true,
+        // withCredentials: true,
+        auth:{token},
         transports: ['websocket', 'polling'], // Fixed 'ploling'
         reconnectionAttempts: 5,
         reconnectionDelay: 1000,
