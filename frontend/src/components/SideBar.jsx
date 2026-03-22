@@ -82,8 +82,8 @@ const SideBar = () => {
       animate={{opacity:1}}
       transition={{duration:0.3}}
       className={`${isMobile ? "fixed flex-row justify-around bottom-0 left-0 right-0 h-16":"w-16 flex-col justify-between h-screen border-r-2"} 
-      ${theme === 'dark' ? 'bg-gray-800 border-gray-600' :"bg--[rgb(239, 242,254)] border-gray-400"}
-      bg-opacity-90 flex items-center py-4 shadow-lg
+      ${theme === 'dark' ? 'bg-gray-800/90 border-gray-600' :"bg-[rgb(239, 242,254)]/90 border-gray-400"}
+      flex items-center py-4 shadow-lg
 
       `}
     >

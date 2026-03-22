@@ -399,7 +399,7 @@ const VideoCallModel = ({ socket }) => {
     isCallActive || callStatus === "calling" || callStatus === "connecting";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black75">
       <div
         className={`relative w-full h-full max-w-4xl max-h-3xl rounded-lg overflow-hidden ${theme === "dark" ? "bg-gray-900" : "bg-white"}`}
       >
@@ -495,7 +495,7 @@ const VideoCallModel = ({ socket }) => {
             {/* Call status */}
             <div className="absolute top-4 left-4">
               <div
-                className={`px-4 py-2 rounded-full ${theme === "dark" ? "bg-gray-800" : "bg-white"} bg-opacity-75`}
+                className={`px-4 py-2 rounded-full ${theme === "dark" ? "bg-gray-800/75" : "bg-white/75"} `}
               >
                 <p
                   className={`text-sm ${theme === "dark" ? "text-white" : "text-black"}`}

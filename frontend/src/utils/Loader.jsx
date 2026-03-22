@@ -14,7 +14,7 @@ export default function Loader({ progress = 0 }) {
       >
         <FaWhatsapp className="w-16 h-16 text-green-500" />
       </motion.div>
-      <div className="w-64 bg-white bg-opacity-30 rounded-full h-2 mb-4">
+      <div className="w-64 bg-white/30 rounded-full h-2 mb-4">
         <motion.div
           className="bg-white h-full rounded-full"
           initial={{ width: 0 }}
