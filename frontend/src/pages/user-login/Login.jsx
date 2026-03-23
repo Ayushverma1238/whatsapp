@@ -111,38 +111,43 @@ const Login = () => {
       ></div>
     </div>
   );
-
-  const onLoginSubmit = async (data) => {
-    try {
-      setLoading(true);
-      if (email && email.trim() !== "") {
-        const response = await sendOtp(null,null, email);
-        if (response.status === "success") {
-          toast.info("OTP send to your email");
-          setUserPhoneData({ email });
-          setStep(2);
-        }
-      } else {
-        const response = await sendOtp(phoneNumber, selectedCountry.dialCode,);
-        if (response.status === "success") {
-          toast.info("OTP send to your mobile number");
-          setUserPhoneData({
-            phoneNumber,
-            phoneSuffix: selectedCountry.dialCode,
-          });
-          setStep(2);
-        }
+const onLoginSubmit = async (data) => {
+  setLoading(true);
+  setError(null); // Clear previous errors
+  try {
+    let response;
+    
+    if (email?.trim()) {
+      // Sending OTP via Email
+      response = await sendOtp(null, null, email);
+      if (response.status === "success") {
+        toast.info("OTP sent to your email");
+        setUserPhoneData({ email });
+        setStep(2);
       }
-    } catch (error) {
-      console.log("Full error:", error);
-
-      setError(
-        error?.response?.data?.message || error.message || "Failed to send OTP",
-      );
-    } finally {
-      setLoading(false);
+    } else if (phoneNumber) {
+      // Sending OTP via Phone
+      response = await sendOtp(phoneNumber, selectedCountry.dialCode);
+      if (response.status === "success") {
+        toast.info("OTP sent to your mobile number");
+        setUserPhoneData({
+          phoneNumber,
+          phoneSuffix: selectedCountry.dialCode,
+        });
+        setStep(2);
+      }
+    } else {
+      toast.warning("Please enter an email or phone number");
     }
-  };
+  } catch (error) {
+    console.error("Login Error:", error);
+    const msg = error?.response?.data?.message || error.message || "Failed to send OTP";
+    setError(msg);
+    toast.error(msg);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const onOtpSubmit = async () => {
   try {

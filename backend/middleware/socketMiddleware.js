@@ -1,35 +1,32 @@
 const jwt = require("jsonwebtoken");
-const response = require("../utils/responseHandler");
 
 const socketMiddleware = (socket, next) => {
-    
-    const authHeader = req.headers['authorization']
-    
-
-    const token = socket.handShake.auth?.token || socket.handshake.headers['authorization']?.split(' ')[1];
-
-    if(!token){
-      return next(new Error("Unauthorized access. authorized token missing"))
-    }
   try {
-    // const token = req.cookies.auth_token;
+    // 1. Extract token from either handshake auth or headers
+    const token = 
+      socket.handshake.auth?.token || 
+      socket.handshake.headers['authorization']?.split(' ')[1];
 
-    // if (!token) {
-    //   return response(res, 401, "Unauthorized access");
-    // }
+    if (!token) {
+      // Socket.io middleware expects an Error object in next()
+      return next(new Error("Unauthorized access. Token missing."));
+    }
 
-
+    // 2. Verify Token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    req.user = {
-      userId: decoded.id,
+    // 3. Attach user to the SOCKET object (Not 'req')
+    // This allows you to access socket.user.userId in your controllers
+    socket.user = {
+      userId: decoded.id || decoded.userId, 
     };
 
+    // 4. Success - proceed to connection
     next();
 
   } catch (error) {
-    console.log(error);
-    return response(res, 401, "Invalid token");
+    console.error("Socket Auth Error:", error.message);
+    return next(new Error("Invalid token. Authentication failed."));
   }
 };
 
