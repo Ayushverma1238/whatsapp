@@ -5,6 +5,7 @@ const {multerMiddleware} = require("../config/cloudinaryConfig")
 const router = express.Router()
 // const {updateProfile} = require("../controllers/chatControllers")
 
+console.log(authMiddleware)
 
 router.post('/send-message', authMiddleware,multerMiddleware, chatController.sendMessage);
 
