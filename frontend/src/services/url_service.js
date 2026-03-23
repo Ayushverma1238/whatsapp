@@ -5,8 +5,6 @@ const getToken = () => localStorage.getItem('auth_token')
 
 const axiosInstance = axios.create({
     baseURL: apiUrl,
-    // Since you are using LocalStorage and NOT Cookies, 
-    // you usually set withCredentials to false for cross-site.
     withCredentials: false 
 })
 

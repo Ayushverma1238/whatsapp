@@ -104,7 +104,7 @@ export const useChatStore = create((set, get) => ({
   fetchConversations: async () => {
     set({ loading: true, error: null });
     try {
-      const { data } = await axiosInstance.get("chats/conversations");
+      const { data } = await axiosInstance.get("/chats/conversations");
       set({ conversations: data, loading: false });
 
       // Initialize listeners after data is fetched
@@ -135,7 +135,7 @@ export const useChatStore = create((set, get) => ({
     try {
       set({ loading: true });
       const { data } = await axiosInstance.get(
-        `chats/conversations/${conversationId}/messages`,
+        `/chats/conversations/${conversationId}/messages`,
       );
       const messageArray = Array.isArray(data.data)
         ? data.data
@@ -209,7 +209,7 @@ export const useChatStore = create((set, get) => ({
 
     try {
       const { data } = await axiosInstance.post(
-        "chats/send-message",
+        "/chats/send-message",
         formData,
         { headers: { "Content-Type": "multipart/form-data" } },
       );
@@ -287,7 +287,7 @@ export const useChatStore = create((set, get) => ({
     if (unreadIds.length === 0) return;
 
     try {
-      const { data } = await axiosInstance.put("chats/messages/read", {
+      const { data } = await axiosInstance.put("/chats/messages/read", {
         messageIds: unreadIds,
       });
       const updatedMessages = messages.map((msg) =>
@@ -303,7 +303,7 @@ export const useChatStore = create((set, get) => ({
 
   deleteMessage: async (messageId) => {
     try {
-      await axiosInstance.delete(`chats/messages/${messageId}`);
+      await axiosInstance.delete(`/chats/messages/${messageId}`);
       set((state) => ({
         messages: state.messages?.filter((msg) => msg?._id !== messageId),
       }));

@@ -53,7 +53,7 @@ const useStatusStore = create((set, get) => ({
   fetchStatuses: async () => {
     set({ loading: true, error: null });
     try {
-      const { data } = await axiosInstance.get("status");
+      const { data } = await axiosInstance.get("/status");
       set({ statuses: data.data || [], loading: false });
     } catch (error) {
       set({ error: error.response?.data?.message || error.message, loading: false });
@@ -67,7 +67,7 @@ const useStatusStore = create((set, get) => ({
       if (statusData.file) formData.append("media", statusData.file);
       if (statusData.content?.trim()) formData.append("content", statusData.content.trim());
 
-      const { data } = await axiosInstance.post("status", formData, {
+      const { data } = await axiosInstance.post("/status", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
 
@@ -89,7 +89,7 @@ const useStatusStore = create((set, get) => ({
   viewStatus: async (statusId) => {
     try {
       set({loading:true, error: null})
-      await axiosInstance.put(`status/${statusId}/view`);
+      await axiosInstance.put(`/status/${statusId}/view`);
      set((state) => ({
       statuses: state.statuses.map((status) =>
         status._id === statusId ? {...status}: status),
@@ -104,7 +104,7 @@ const useStatusStore = create((set, get) => ({
   deleteStatus: async (statusId) => {
     set({ loading: true, error: null });
     try {
-      await axiosInstance.delete(`status/${statusId}`);
+      await axiosInstance.delete(`/status/${statusId}`);
       set((state) => ({
         statuses: state.statuses.filter((s) => s._id !== statusId),
         loading: false,
