@@ -63,7 +63,7 @@ const useVideoCallStore = create(
               new RTCIceCandidate(candidate),
             );
           } catch (error) {
-            console.log("ICE candidate error", error);
+            console.error("ICE candidate error", error);
           }
         }
         set({ iceCandidateQueue: [] });
@@ -144,7 +144,6 @@ const useVideoCallStore = create(
       // Inside your socket initialization logic
       // Inside your socket.on("incoming_call", (data) => { ... })
       socket.on("incoming_call", (data) => {
-        console.log("Incoming call data:", data); // This matches what you showed me
 
         setIncomingCall({
           callId: data.callId,

@@ -23,7 +23,7 @@ const Setting = () => {
       clearUser();
       toast.success("User logged out successfully");
     } catch (error) {
-      console.log("Failed to logout user", error);
+      console.error("Failed to logout user", error);
     }
   };
 

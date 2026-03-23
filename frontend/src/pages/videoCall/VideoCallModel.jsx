@@ -92,7 +92,6 @@ const VideoCallModel = ({ socket }) => {
   // Connect detection
   useEffect(() => {
     if (peerConnection && remoteStream) {
-      console.log("Both peer connection and remote stream is available");
       setCallStatus("connected");
       setCallActive(true);
     }
@@ -118,11 +117,10 @@ const VideoCallModel = ({ socket }) => {
         video: video ? { width: 640, height: 480 } : false,
         audio: true,
       });
-      console.log("Local media stream", stream.getTracks());
       setLocalStream(stream);
       return stream;
     } catch (error) {
-      console.log(error);
+      console.error(error);
       throw error;
     }
   };
@@ -132,7 +130,6 @@ const VideoCallModel = ({ socket }) => {
     // add a local tracks immediatly
     if (stream) {
       stream.getTracks().forEach((track) => {
-        console.log(`${role} adding ${track.kind} track`, track.id.slice(0, 8));
         pc.addTrack(track, stream);
       });
     }
@@ -164,20 +161,19 @@ const VideoCallModel = ({ socket }) => {
     };
     // connection monitor
     pc.onconnectionstatechange = () => {
-      console.log(`role: ${role}: connection status: `, pc.connectionState);
       if (pc.connectionState === "failed") {
         setCallStatus("failed");
         setTimeout(handleEndCall, 2000);
       }
     };
 
-    pc.oniceconnectionstatechange = () => {
-      console.log(`role: ${role}: ICE state `, pc.iceConnectionState);
-    };
+    // pc.oniceconnectionstatechange = () => {
+    //   console.log(`role: ${role}: ICE state `, pc.iceConnectionState);
+    // };
 
-    pc.onsignalingstatechange = () => {
-      console.log(`${role} : Signaling state`, pc.signalingState);
-    };
+    // pc.onsignalingstatechange = () => {
+    //   console.log(`${role} : Signaling state`, pc.signalingState);
+    // };
 
     setPeerConnection(pc);
     return pc;
@@ -200,7 +196,7 @@ const VideoCallModel = ({ socket }) => {
         callId: currentCall?.callId,
       });
     } catch (error) {
-      console.log("Caller Error", error);
+      console.error("Caller Error", error);
       setCallStatus("failed");
       setTimeout(handleEndCall, 2000);
     }
@@ -230,7 +226,7 @@ const VideoCallModel = ({ socket }) => {
 
       clearIncomingCall();
     } catch (error) {
-      console.log("receiver error", error);
+      console.error("receiver error", error);
       handleEndCall();
     }
   };
@@ -326,7 +322,6 @@ const VideoCallModel = ({ socket }) => {
           callId,
         });
 
-        console.log("Receiver: Answer sent. Waiting for ICE connection...");
       } catch (error) {
         console.error("Receiver offer error:", error);
         // Optional: setCallStatus("failed") here if the handshake fails
@@ -336,7 +331,6 @@ const VideoCallModel = ({ socket }) => {
     const handleWebRTCAnswer = async ({ answer, senderId, callId }) => {
       if (!peerConnection) return;
       if (peerConnection.signalingState === "closed") {
-        console.log("Caller: Peer connection is closed");
         return;
       }
 
@@ -347,7 +341,6 @@ const VideoCallModel = ({ socket }) => {
 
         await processQueuedIceCandidates();
         const receivers = peerConnection.getReceivers();
-        console.log("Receiver", receivers);
       } catch (error) {
         console.error("caller answer error ", error);
       }
@@ -361,16 +354,15 @@ const VideoCallModel = ({ socket }) => {
             await peerConnection.addIceCandidate(
               new RTCIceCandidate(candidate),
             );
-            console.log("ICE candidate added successfully");
           } catch (error) {
             console.error("Failed to add ICE candidate:", error);
           }
         } else {
-          console.log("Remote description not ready, queueing candidate...");
+          console.error("Remote description not ready, queueing candidate...");
           addIceCandidate(candidate);
         }
       } else {
-        console.log("PeerConnection not ready, queueing candidate...");
+        console.error("PeerConnection not ready, queueing candidate...");
         addIceCandidate(candidate);
       }
     };
@@ -382,7 +374,6 @@ const VideoCallModel = ({ socket }) => {
     socket.on("webrtc_answer", handleWebRTCAnswer);
     socket.on("webrtc_ice_candidate", handleWebRTCIceCandidates);
 
-    console.log("socekt listeners register");
     return () => {
       socket.off("call_accepted", handleCallAccepted);
       socket.off("call_rejected", handleCallRejected);

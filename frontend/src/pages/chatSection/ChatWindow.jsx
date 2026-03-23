@@ -113,14 +113,12 @@ const ChatWindow = ({ selectedContact, setSelectedContact }) => {
 
   const handleReaction = async (messageId, emoji) => {
     try {
-      console.log("Emoji coming from bubble ", emoji);
       // 1. Call the store action
       await addReaction(messageId, emoji);
 
       // 2. (Optional) Close the emoji picker if you have one open for that specific message
       setShowEmojiPicker(false);
 
-      console.log(`Reaction ${emoji} added to message ${messageId}`);
     } catch (error) {
       console.error("Failed to add reaction:", error);
     }

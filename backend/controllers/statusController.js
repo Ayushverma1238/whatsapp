@@ -4,7 +4,6 @@ const Status = require("../models/Status");
 const { uploadFileToCloudinary } = require("../config/cloudinaryConfig");
 
 exports.createStatus = async (req, res) => {
-  console.log("Creating Status...");
   try {
     const { content, contentType } = req.body;
     const userId = req.user.userId;
@@ -128,12 +127,9 @@ exports.viewStatus = async (req, res) => {
 
           req.io.to(statusOwnerSocketId).emit("status_viewed", viewData);
         } else {
-          console.log("Status owner is not online");
         }
       }
-    } else {
-      console.log("Status already viewed by user");
-    }
+    } 
 
     return response(res, 200, "Status viewed successfully");
   } catch (error) {
@@ -145,11 +141,9 @@ exports.viewStatus = async (req, res) => {
 exports.deleteStatus = async (req, res) => {
   const { statusId } = req.params;
   const userId = req.user.userId;
-  console.log(statusId);
 
   try {
     const status = await Status.findById(statusId);
-    console.log(status);
     if (!status) {
       return response(res, 404, "Status not found");
     }

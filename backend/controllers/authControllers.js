@@ -9,8 +9,7 @@ const generateToken = require("../utils/generateTokens");
 const {uploadFileToCloudinary} = require("../config/cloudinaryConfig");
 
 const sendOtp = async (req, res) => {
-  console.log(req.body)
-  console.log("Sending otp");
+  
   const { phoneNumber, phoneSuffix, email } = req.body;
   const otp = otpGenerate();
   const expiry = new Date(Date.now() + 5 * 60 * 1000);

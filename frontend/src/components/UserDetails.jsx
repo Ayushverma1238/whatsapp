@@ -63,7 +63,7 @@ const UserDetails = () => {
       toast.success("Profile Updated");
       setLoading(false);
     } catch (error) {
-      console.log(error);
+      console.error(error);
       toast.error("Failed to Updated Profile");
     }
   };

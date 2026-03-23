@@ -10,7 +10,6 @@ let socket = null;
 export const initializeSocket = () => {
     // 1. Singleton check: If already connected, don't create a new one
     if (socket && socket.connected) {
-        console.log("Status: Socket already connected.");
         return socket;
     }
 
@@ -44,7 +43,6 @@ export const initializeSocket = () => {
 
     // 4. Setup Core Listeners
     socket.on("connect", () => {
-        console.log("✅ Socket Connected to Render:", socket.id);
         
         // Inform backend which user this socket belongs to
         // Use user?._id to prevent crashes if user object is malformed
@@ -64,7 +62,6 @@ export const initializeSocket = () => {
     });
 
     socket.on('disconnect', (reason) => {
-        console.log("🔌 Socket disconnected:", reason);
         // 'io server disconnect' means the server kicked us out (likely auth error)
         if (reason === "io server disconnect") {
             socket.connect(); 
@@ -91,6 +88,5 @@ export const disconnectSocket = () => {
     if (socket) {
         socket.disconnect();
         socket = null;
-        console.log("🛑 Socket manually destroyed and cleared.");
     }
 };

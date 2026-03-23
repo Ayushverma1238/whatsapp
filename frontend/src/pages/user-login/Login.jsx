@@ -185,7 +185,7 @@ const onLoginSubmit = async (data) => {
         }
       }
     } catch (error) {
-      console.log(error);
+      console.error(error);
       setError(error.message || "failed to verify OTP");
     } finally {
       setLoading(false);
@@ -221,7 +221,6 @@ const onLoginSubmit = async (data) => {
   const onProfileSubmit = async (data) => {
     try {
       setLoading(true);
-      console.log(data)
       const formData = new FormData();
       formData.append("username", data.username);
       formData.append("agreed", data.agreed);
@@ -236,7 +235,7 @@ const onLoginSubmit = async (data) => {
       navigate("/");
       resetLoginState();
     } catch (error) {
-      console.log(error);
+      console.error(error);
       setError(error.message || "failed to update user profile");
     } finally {
       setLoading(false);

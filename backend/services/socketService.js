@@ -23,7 +23,6 @@ const initilizeSocket = (server) => {
   
 
   io.on("connection", (socket) => {
-    console.log("User connected: ", socket.id);
     let userId = null;
 
     socket.on("user_connected", async (connectingUserId) => {
@@ -49,9 +48,8 @@ const initilizeSocket = (server) => {
         const currentOnlineIds = Array.from(onlineUsers.keys());
         socket.emit("online_users_list", currentOnlineIds);
 
-        console.log(`User ${userId} joined. Total online: ${onlineUsers.size}`);
       } catch (error) {
-        console.log("Error handling user connection", error);
+        console.error("Error handling user connection", error);
       }
     });
 
@@ -72,7 +70,7 @@ const initilizeSocket = (server) => {
           io.to(receiverSocketId).emit("receive_message", message);
         }
       } catch (error) {
-        console.log("Error sending message", error);
+        console.error("Error sending message", error);
         socket.emit("message_error", { error: "Failed to send message" });
       }
     });
@@ -239,9 +237,8 @@ const initilizeSocket = (server) => {
         });
 
         socket.leave(userId);
-        console.log(`user ${userId} disconnected`);
       } catch (error) {
-        console.log("Error handling disconnection", error);
+        console.error("Error handling disconnection", error);
       }
     };
     socket.on("disconnect", handleDisconnected);

@@ -93,7 +93,6 @@ const Status = () => {
   };
 
   const handleDeleteStatus = async (statusId) => {
-    console.log(statusId)
     try {
       await deleteStatus(statusId);
       setShowOptions(false);

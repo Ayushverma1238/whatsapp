@@ -40,7 +40,6 @@ useEffect(() => {
 
     // --- ADD THIS LISTENER ---
     const handleCallEnded = () => {
-      console.log("Call was cancelled by the other user");
       endCall(); 
     };
 

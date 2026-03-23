@@ -213,7 +213,6 @@ export const useChatStore = create((set, get) => ({
         formData,
         { headers: { "Content-Type": "multipart/form-data" } },
       );
-      console.log("sending message response", data.data);
       const messageData = data.data || data;
       set((state) => ({
         messages: state.messages.map((msg) =>
@@ -223,7 +222,7 @@ export const useChatStore = create((set, get) => ({
 
       return messageData;
     } catch (error) {
-      console.log("Error sending message", error);
+      console.error("Error sending message", error);
       set((state) => ({
         messages: state.messages.map((msg) =>
           msg._id === tempId ? { ...msg, messageStatus: "failed" } : msg,
@@ -297,7 +296,6 @@ export const useChatStore = create((set, get) => ({
 
       set({ messages: updatedMessages });
 
-      console.log(`${unreadIds.length} messages marked as read`);
     } catch (error) {
       console.error("Error marking messages as read:", error);
     }
@@ -319,7 +317,6 @@ export const useChatStore = create((set, get) => ({
   addReaction: async (messageId, emoji) => {
     const socket = getSocket();
     const { currentUser } = get();
-    console.log("Chat storeemoji", emoji, messageId);
     if (socket && currentUser) {
       socket.emit("add_reaction", {
         messageId,

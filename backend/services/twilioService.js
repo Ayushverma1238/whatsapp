@@ -7,7 +7,6 @@ const serviceSid = process.env.TWILIO_VERIFY_SERVICE_SID;
 const client = twilio(accountSid, authToken);
 const sendOtpToPhoneNo = async (phoneNumber) => {
   try {
-    console.log("Sending otp to this no", phoneNumber);
    
     if (!phoneNumber) {
       throw new Error("Phone number is required");
@@ -20,11 +19,10 @@ const sendOtpToPhoneNo = async (phoneNumber) => {
         channel: "sms",
       });
 
-    console.log("OTP sent:", response.status);
 
     return response;
   } catch (error) {
-    console.log(error);
+    console.error(error);
     throw new Error("Failed to send otp");
   }
 };
@@ -33,7 +31,6 @@ const sendOtpToPhoneNo = async (phoneNumber) => {
 
 const verifyOtp = async (phone, otp) => {
   try {
-       console.log("Verify SID:", process.env.twilio_SERVICE_SID);
 
     const verification = await client.verify.v2
       .services(process.env.TWILIO_VERIFY_SERVICE_SID)
@@ -42,12 +39,11 @@ const verifyOtp = async (phone, otp) => {
         code: otp,
       });
 
-    console.log("Verification result:", verification.status);
 
     return verification;
 
   } catch (error) {
-    console.log(error);
+    console.error(error);
     throw new Error("Otp verification failed");
   }
 };
