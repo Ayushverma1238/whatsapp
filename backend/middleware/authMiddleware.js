@@ -3,11 +3,6 @@ const response = require("../utils/responseHandler");
 
 const authMiddleware = (req, res, next) => {
   try {
-    // const token = req.cookies.auth_token;
-
-    // if (!token) {
-    //   return response(res, 401, "Unauthorized access");
-    // }
 
     const authHeader = req.headers['authorization']
     if(!authHeader || !authHeader.startsWith("Bearer")){
