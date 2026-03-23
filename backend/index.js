@@ -15,14 +15,25 @@ const PORT = process.env.PORT || 5000;
 
 const app = express();
 
-const corsOption = {
-  origin: process.env.FRONTEND_URL,
-  methods: ["GET", "POST", "PUT", "DELETE"],
-  credentials: true,
-  allowedHeaders: ["Content-Type", "Authorization"]
-};
+const allowedOrigins = [
+  'https://whatsapp-clone-taupe-nu.vercel.app', // Your main "Taupe" URL
+  /\.vercel\.app$/                             // Any URL ending in .vercel.app (Regex)
+];
 
-app.use(cors(corsOption));
+app.use(cors({
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps) 
+    // or if the origin is in our allowed list/regex
+    if (!origin || allowedOrigins.some(pattern => 
+      typeof pattern === 'string' ? pattern === origin : pattern.test(origin)
+    )) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true
+}));
 
 // middleware
 app.use(express.json());
