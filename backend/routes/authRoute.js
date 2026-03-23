@@ -1,6 +1,6 @@
 const express = require("express")
 const authController = require("../controllers/authControllers")
-const authMiddleware = require("../middleware/authMiddleware")
+const authMiddleware = require("../middleware/authMiddleware").default
 const {multerMiddleware} = require("../config/cloudinaryConfig")
 const router = express.Router()
 // const {updateProfile} = require("../controllers/authControllers")
