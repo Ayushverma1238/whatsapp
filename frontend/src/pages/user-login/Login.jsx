@@ -489,7 +489,7 @@ ${loginErrors.email ? "border-red-500" : ""}`}
                 {...profileRegister('username')}
                 type="text"
                 placeholder="Username"
-                className={`w-full pl-10 pr-3 py-2 border ${theme === 'dark' ? 'bg-gray-700 border-gray-600 text-white' : "border-gray-300 bg-white"} rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-lg`}
+                className={`w-full pl-10 pr-3 py-2 border ${theme === 'dark' ? 'bg-gray-700 border-gray-600 text-white' : "border-gray-300 text-black bg-white"} rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-lg`}
                  />
                  {profileError.username && (
                   <p className="text-red-500 text-sm mt-1">{profileError.username.message}</p>

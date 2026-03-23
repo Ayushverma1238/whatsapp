@@ -110,7 +110,7 @@ const verifyOtp = async (req, res) => {
 const updateProfile = async (req, res) => {
   // 1. Destructure profilePicture from req.body (for avatars)
   const { username, agreed, about, profilePicture } = req.body;
-  const userId = req.user.userId;
+  const userId = req.user._id;
 
   try {
     const user = await User.findById(userId);
