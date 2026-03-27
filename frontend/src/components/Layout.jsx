@@ -6,6 +6,7 @@ import SideBar from "./SideBar";
 import { AnimatePresence, motion } from "framer-motion";
 import ChatWindow from "../pages/chatSection/ChatWindow";
 import useThemeStore from "../store/themeStore";
+import { useChatStore } from "../store/chatStore";
 
 const Layout = ({
   children,
@@ -18,6 +19,12 @@ const Layout = ({
   const setSelectedContact = useLayoutStore(
     (state) => state.setSelectedContact,
   );
+  const { resetSelectedChat} = useChatStore();
+  useEffect(() => {
+    resetSelectedChat();
+  }, [resetSelectedChat]);
+
+
   const location = useLocation();
   const { theme, setTheme } = useThemeStore();
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
@@ -53,7 +60,7 @@ const Layout = ({
           )}
 
           {/* CHAT WINDOW: Show if Desktop OR if Mobile and a contact IS selected */}
-          {(!isMobile || selectedContact) && (
+          {(!isMobile || selectedContact) ? (
             <motion.div
               key="chatwindow"
               initial={{ x: isMobile ? "100%" : 0 }} // Slide in from right on mobile
@@ -64,6 +71,22 @@ const Layout = ({
             >
               <ChatWindow
                 selectedContact={selectedContact}
+                setSelectedContact={setSelectedContact}
+                isMobile={isMobile}
+              />
+            </motion.div>
+          ):
+          (
+            <motion.div
+              key="chatwindow"
+              initial={{ x: isMobile ? "100%" : 0 }} // Slide in from right on mobile
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{ type: "tween" }}
+              className={`w-full h-full`}
+            >
+              <ChatWindow
+                selectedContact={null}
                 setSelectedContact={setSelectedContact}
                 isMobile={isMobile}
               />

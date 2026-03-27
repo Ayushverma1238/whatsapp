@@ -157,6 +157,7 @@ export const useChatStore = create((set, get) => ({
 },
 
   setCurrentUser: (user) => set({ currentUser: user }),
+  resetSelectedChat: () => set({ selectedContact: null, messages: [] }),
 
   fetchConversations: async () => {
     set({ loading: true, error: null });

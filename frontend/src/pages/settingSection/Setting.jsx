@@ -16,12 +16,18 @@ const Setting = () => {
   const toggleThemeDialog = () => {
     setIsThemeDialogOpen(!isThemeDialogOpen);
   };
-
-  const handleLogout = async () => {
+const handleLogout = async () => {
     try {
-      await logoutUser();
-      clearUser();
+      await logoutUser(); // Server-side logout
+      
+      // Explicitly clear storage right here if clearUser() isn't doing it
+      localStorage.removeItem("your_token_name"); 
+      
+      clearUser(); // Client-side state cleanup
       toast.success("User logged out successfully");
+      
+      // Optional: Redirect to login to refresh the app state
+      // navigate("/login"); 
     } catch (error) {
       console.error("Failed to logout user", error);
     }

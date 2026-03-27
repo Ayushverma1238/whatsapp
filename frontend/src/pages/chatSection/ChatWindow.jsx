@@ -57,6 +57,10 @@ const ChatWindow = ({ selectedContact, setSelectedContact }) => {
 
   const socket = getSocket();
 
+  useEffect(()=>{
+    setSelectedContact(null)
+  },[])
+
   // const onlineStatus = useChatStore((state) =>
   //   state.onlineUsers.get(selectedContact?._id),
   // );
@@ -64,6 +68,7 @@ const ChatWindow = ({ selectedContact, setSelectedContact }) => {
   const lastSeen= getUserLastSeen(selectedContact?._id);
   const isTyping = isUserTyping(selectedContact?._id);
 
+  
 
   // Fetch messages when contact changes
   useEffect(() => {
@@ -213,6 +218,8 @@ const ChatWindow = ({ selectedContact, setSelectedContact }) => {
         return acc;
       }, {})
     : {};
+
+ 
 
   if (!selectedContact) {
     return (

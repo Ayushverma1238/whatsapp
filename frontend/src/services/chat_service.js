@@ -6,21 +6,18 @@ let socket = null; // Defined outside the function
 const token = () => localStorage.getItem('auth_token')
 
 
-
 export const initializeSocket = () => {
   // 1. If socket already exists, DON'T create a new one.
-  // Just return the existing instance (even if it's currently connecting)
-  if (socket) {
-    return socket; 
-  }
+  if (socket) return socket; 
 
+  // FIX: Get the token here so it's not undefined!
+  const token = localStorage.getItem("auth_token");
   const user = useUserStore.getState().user;
   const BACKEND_URL = import.meta.env.VITE_API_URL;
 
-  // 2. Create Connection ONLY if socket is null
+  // 2. Create Connection
   socket = io(BACKEND_URL, {
-    auth:{token},
-    // withCredentials: true,
+    auth: { token }, // Now 'token' actually has a value
     transports: ["websocket", "polling"],
     reconnectionAttempts: 10,
     reconnectionDelay: 2000,
@@ -28,21 +25,23 @@ export const initializeSocket = () => {
   });
 
   socket.on("connect", () => {
-    console.log("Socket connected:", socket.id);
-    if (user?._id) {
-      socket.emit("user_connected", user._id);
+    console.log("✅ Socket connected:", socket.id);
+    // Note: Use user?._id or String(user?._id) to be safe
+    const userId = user?._id || user?.id;
+    if (userId) {
+      socket.emit("user_connected", userId);
     }
   });
 
   socket.on("connect_error", (error) => {
+    // If you see 'jwt must be provided' here, check if localStorage has the token
     console.error("❌ Socket connection error:", error.message);
   });
 
   socket.on("disconnect", (reason) => {
     console.log("Socket disconnected:", reason);
-    // If the server disconnected us, we might want to clear the instance
     if (reason === "io server disconnect") {
-       socket.connect(); // Manually reconnect if kicked by server
+      socket.connect(); 
     }
   });
 

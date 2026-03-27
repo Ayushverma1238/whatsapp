@@ -3,7 +3,6 @@ const response = require("../utils/responseHandler.js");
 
 const authMiddleware = (req, res, next) => {
   const authHeader = req.headers['authorization'];
-  console.log("Response function check:", typeof response);
   // 1. Check if header exists and starts with Bearer
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return response(res, 401, 'Authorization token missing. Please login again');
