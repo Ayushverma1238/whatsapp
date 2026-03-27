@@ -31,28 +31,24 @@ useEffect(() => {
       setCallStatus("ringing");
     };
 
-    const handleCallFailed = ({ reason }) => {
+    const handleCallEnded = ({ reason }) => {
       setCallStatus("failed");
       setTimeout(() => {
         endCall();
       }, 2000);
     };
 
-    // --- ADD THIS LISTENER ---
-    const handleCallEnded = () => {
-      endCall(); 
-    };
 
     // Attach listeners
     socket.on("incoming_call", handleIncomingCall);
-    socket.on("call_failed", handleCallFailed);
-    socket.on("call_ended", handleCallEnded); // <--- Listen for the end signal
+    socket.on("call_failed", handleCallEnded);
 
     return () => {
       socket.off("incoming_call", handleIncomingCall);
-      socket.off("call_failed", handleCallFailed);
-      socket.off("call_ended", handleCallEnded); // <--- Cleanup
+      socket.off("call_failed", handleCallEnded);
     };
+
+    
   }, [socket, setIncomingCall, setCallType, setCallModelOpen, setCallStatus, endCall]);
   // Memorized function to initiate call
   const initiateCall = useCallback((receiverId, receiverName, receiverAvatar, callType = "video") => {
@@ -86,11 +82,8 @@ useEffect(() => {
 
   // Expose initiateCall via the store or a ref if needed
   useEffect(() => {
-    // Note: Ensure your store actually has a setInitiateCall action 
-    // or handles this pattern. 
-    if (useVideoCallStore.setState) {
-        useVideoCallStore.setState({ initiateCall });
-    }
+    useVideoCallStore.getState().initiateCall = initiateCall;
+    
   }, [initiateCall]);
 
   return <VideoCallModel socket={socket} />;

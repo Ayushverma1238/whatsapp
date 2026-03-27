@@ -11,95 +11,152 @@ export const useChatStore = create((set, get) => ({
   onlineUsers: new Map(),
   typingUsers: new Map(),
 
-  initsocketListeners: () => {
-    const socket = getSocket();
-    if (!socket) return;
+ initsocketListeners: () => {
+  const socket = getSocket();
+  const { currentUser } = get();
+  if (!socket || !currentUser) return;
 
-    // Remove existing listeners to prevent duplicates
-    const events = [
-      "receive_message",
-      "user_typing",
-      "message_send",
-      "user_status",
-      "message_error",
-      "message_deleted",
-      "message_status_update",
-      "reaction_update",
-    ];
-    events.forEach((event) => socket.off(event));
+  // 1. Clean up existing listeners to prevent memory leaks and "Insufficient Resources"
+  const events = [
+    "receive_message",
+    "user_typing",
+    "message_send",
+    "user_status",
+    "message_error",
+    "message_deleted",
+    "message_status_update",
+    "reaction_update",
+    "online_users_list"
+  ];
+  events.forEach((event) => socket.off(event));
 
-    socket.on("online_users_list", (userIds) => {
-      set((state) => {
-        const newOnlineUsers = new Map(state.onlineUsers);
-        userIds.forEach((id) => {
-          // Check if ID is an object (sometimes happens with MongoDB objects)
-          const stringId = typeof id === 'object' ? id._id : id;
-          newOnlineUsers.set(stringId, { isOnline: true, lastSeen: new Date() });
+  // 2. Handle the initial "Full List" of online users
+  socket.on("online_users_list", (userIds) => {
+    set((state) => {
+      const newOnlineUsers = new Map(state.onlineUsers);
+      userIds.forEach((id) => {
+        const stringId = typeof id === "object" ? id._id : id;
+        newOnlineUsers.set(stringId, {
+          isOnline: true,
+          lastSeen: new Date(),
         });
-        return { onlineUsers: newOnlineUsers };
       });
+      return { onlineUsers: newOnlineUsers };
     });
+  });
 
-    // 1. Listen for incoming messages
-    socket.on("receive_message", (message) => {
+  // 3. Handle specific User Status changes (Join/Leave)
+  socket.on("user_status", ({ userId, isOnline, lastSeen }) => {
+    set((state) => {
+      const newOnlineUsers = new Map(state.onlineUsers);
+      newOnlineUsers.set(userId, { isOnline, lastSeen });
+      return { onlineUsers: newOnlineUsers };
+    });
+  });
+
+  // 4. Listen for incoming messages
+  socket.on("receive_message", (message) => {
+    const { currentConversation, messages } = get();
+    
+    // Safety check: ensure we don't add duplicate messages
+    const messageExist = messages.some((msg) => msg._id === message._id);
+    if (messageExist) return;
+
+    if (message.conversation === currentConversation) {
       set((state) => ({
         messages: [...state.messages, message],
       }));
-    });
+      
+      // If we are the receiver, mark it as read
+      if (message.receiver?._id === currentUser._id) {
+        get().maskMessagesAsRead();
+      }
+    }
 
-    // 2. Update message status (Sent/Delivered/Seen)
-    socket.on("message_status_update", ({ messageId, messageStatus }) => {
-      set((state) => ({
-        messages: state.messages.map((msg) =>
-          msg._id === messageId ? { ...msg, messageStatus } : msg,
-        ),
-      }));
-    });
-
-    // 3. Handle Reactions
-    socket.on("reaction_update", ({ messageId, reaction }) => {
-      set((state) => ({
-        messages: state.messages.map((msg) =>
-          msg._id === messageId ? { ...msg, reaction } : msg,
-        ),
-      }));
-    });
-
-    // 4. Handle Deletions
-    socket.on("message_deleted", ({ deletedMessageId }) => {
-      set((state) => ({
-        messages: state.messages.filter((msg) => msg._id !== deletedMessageId),
-      }));
-    });
-
-    // 5. Typing Indicators
-    socket.on("user_typing", ({ userId, conversationId, isTyping }) => {
-      set((state) => {
-        const newTypingUsers = new Map(state.typingUsers);
-        if (!newTypingUsers.has(conversationId)) {
-          newTypingUsers.set(conversationId, new Set());
+    // Update conversation list last message preview
+    set((state) => {
+      const updatedData = state.conversations?.data?.map((conv) => {
+        if (conv._id === message.conversation) {
+          return {
+            ...conv,
+            lastMessage: message,
+            unreadCount: (message.receiver?._id === currentUser._id && message.conversation !== currentConversation)
+              ? (conv.unreadCount || 0) + 1 
+              : conv.unreadCount || 0
+          };
         }
-
-        const typingSet = newTypingUsers.get(conversationId);
-        if (isTyping) {
-          typingSet.add(userId);
-        } else {
-          typingSet.delete(userId);
-        }
-        return { typingUsers: newTypingUsers };
+        return conv;
       });
+      return { conversations: { ...state.conversations, data: updatedData } };
     });
+  });
 
-    socket.on("user_status", ({ userId, isOnline, lastSeen }) => {
-      set((state) => {
-        const newOnlineUsers = new Map(state.onlineUsers);
-        // Ensure userId is a string
-        const stringId = typeof userId === 'object' ? userId._id : userId;
-        newOnlineUsers.set(stringId, { isOnline, lastSeen: lastSeen || new Date() });
-        return { onlineUsers: newOnlineUsers };
-      });
+  // 5. Typing Indicators
+  socket.on("user_typing", ({ userId, conversationId, isTyping }) => {
+    set((state) => {
+      const newTypingUsers = new Map(state.typingUsers);
+      if (!newTypingUsers.has(conversationId)) {
+        newTypingUsers.set(conversationId, new Set());
+      }
+
+      const typingSet = new Set(newTypingUsers.get(conversationId));
+      isTyping ? typingSet.add(userId) : typingSet.delete(userId);
+      
+      newTypingUsers.set(conversationId, typingSet);
+      return { typingUsers: newTypingUsers };
     });
-  },
+  });
+
+  // 6. Message Status Updates (Sent/Delivered/Read)
+  socket.on("message_status_update", ({ messageId, messageStatus }) => {
+    set((state) => ({
+      messages: state.messages.map((msg) =>
+        msg._id === messageId ? { ...msg, messageStatus } : msg
+      ),
+    }));
+  });
+
+  // 7. Manual Status Check for Conversations (The Sync Fix)
+  const { conversations } = get();
+  if (conversations?.data?.length > 0) {
+    conversations.data.forEach((conv) => {
+      const otherUser = conv.participants.find((p) => p._id !== currentUser._id);
+      
+      if (otherUser?._id) {
+        // Ask server for the specific status of this participant
+        socket.emit("get_user_status", otherUser._id, (status) => {
+          if (status) {
+            set((state) => {
+              const newOnlineUsers = new Map(state.onlineUsers);
+              newOnlineUsers.set(otherUser._id, {
+                isOnline: status.isOnline,
+                lastSeen: status.lastSeen,
+              });
+              return { onlineUsers: newOnlineUsers };
+            });
+          }
+        });
+      }
+    });
+  }
+
+  // 8. Reactions and Deletions
+  socket.on("reaction_update", ({ messageId, reactions }) => {
+    set((state) => ({
+      messages: state.messages.map((msg) =>
+        msg._id === messageId ? { ...msg, reactions } : msg
+      ),
+    }));
+  });
+
+  socket.on("message_deleted", ({ deletedMessageId }) => {
+    set((state) => ({
+      messages: state.messages.filter((msg) => msg._id !== deletedMessageId),
+    }));
+  });
+},
+
+  setCurrentUser: (user) => set({ currentUser: user }),
 
   fetchConversations: async () => {
     set({ loading: true, error: null });
@@ -118,7 +175,6 @@ export const useChatStore = create((set, get) => ({
       return null;
     }
   },
-  setCurrentUser: (user) => set({ currentUser: user }),
 
   setCurrentConversation: (conv) => set({ currentConversation: conv }),
 
@@ -132,24 +188,20 @@ export const useChatStore = create((set, get) => ({
     // 1. FIX: Only return if conversationId is MISSING
     if (!conversationId) return;
 
+    set({ loading: true });
     try {
-      set({ loading: true });
       const { data } = await axiosInstance.get(
         `/chats/conversations/${conversationId}/messages`,
       );
-      const messageArray = Array.isArray(data.data)
-        ? data.data
-        : Array.isArray(data)
-          ? data
-          : [];
+      const messageArray = data.data || data || [];
       set({
         messages: messageArray, // 4. FIX: Matches 'messages' used in ChatWindow
         currentConversation: conversationId,
         loading: false,
       });
 
-      const { maskMessageAsRead } = get();
-      if (maskMessageAsRead) maskMessageAsRead();
+      const { maskMessagesAsRead } = get();
+      if (maskMessagesAsRead) maskMessagesAsRead();
 
       return messageArray;
     } catch (error) {
@@ -236,15 +288,15 @@ export const useChatStore = create((set, get) => ({
   receiveMessage: async (message) => {
     if (!message) return;
     const { currentConversation, currentUser, messages } = get();
-    const messageExist = message.some((msg) => msg._id === message._id);
+    const messageExist = messages.some((msg) => msg._id === message._id);
     if (messageExist) return;
 
     if (message.conversation === currentConversation) {
       set((state) => ({
-        message: [...state, messages, message],
+        messages: [...state, messages, message],
       }));
       if (message.receiverId?._id === currentUser?._id) {
-        get().maskMessageAsRead();
+        get().maskMessagesAsRead();
       }
     }
 
@@ -263,7 +315,7 @@ export const useChatStore = create((set, get) => ({
         return conv;
       });
       return {
-        conversation: {
+        conversations: {
           ...state.conversations,
           data: updateConversations,
         },
@@ -271,15 +323,13 @@ export const useChatStore = create((set, get) => ({
     });
   },
 
-  maskMessageAsRead: async () => {
-    const { messages, user } = get();
+  maskMessagesAsRead: async () => {
+    const { messages, currentUser } = get();
 
-    if (!messages.length || !user) return;
+    if (!messages.length || !currentUser) return;
     const unreadIds = messages
       .filter(
-        (msg) =>
-          msg.messageStatus !== "read" &&
-          (msg.receiver?._id === user._id || msg.receiver === user._id),
+        (msg) => msg.messageStatus !== "read" && msg.receiver?._id === currentUser._id,
       )
       .map((msg) => msg._id)
       .filter(Boolean);
@@ -293,9 +343,16 @@ export const useChatStore = create((set, get) => ({
       const updatedMessages = messages.map((msg) =>
         unreadIds.includes(msg._id) ? { ...msg, messageStatus: "read" } : msg,
       );
+      console.log("Message mark as read", data);
 
       set({ messages: updatedMessages });
-
+      const socket = getSocket();
+      if (socket) {
+        socket.emit("message_read", {
+          messageIds: unreadIds,
+          senderId: messages[0]?.sender?._id,
+        });
+      }
     } catch (error) {
       console.error("Error marking messages as read:", error);
     }
@@ -311,6 +368,7 @@ export const useChatStore = create((set, get) => ({
     } catch (error) {
       console.error("Failed to delete message", error);
       set({ error: error.response?.data?.message || error?.message });
+      return false;
     }
   },
 
@@ -349,10 +407,13 @@ export const useChatStore = create((set, get) => ({
   // ... inside create
   isUserTyping: (userId) => {
     const { typingUsers, currentConversation } = get();
-    if (!currentConversation || !userId) return false;
-
-    const conversationSet = typingUsers.get(currentConversation);
-    return conversationSet ? conversationSet.has(userId) : false;
+    if (
+      !currentConversation ||
+      !typingUsers.has(currentConversation) ||
+      !userId
+    )
+      return false;
+    return typingUsers.get(currentConversation).has(userId);
   },
 
   isUserOnline: (userId) => {
@@ -371,7 +432,7 @@ export const useChatStore = create((set, get) => ({
 
   cleanup: () => {
     set({
-      conversation: [],
+      conversations: [],
       currentConversation: null,
       messages: [],
       onlineUsers: new Map(),

@@ -16,7 +16,7 @@ const ChatList = ({ contacts }) => {
   const { user } = useUserStore();
   const [searchTerms, setSearchTerms] = useState("");
   const filteredContacts = contacts?.filter((contact) => {
-    return contact?.username?.toLowerCase().includes(searchTerms.toLocaleLowerCase());
+    return contact?.username?.toLowerCase().includes(searchTerms.toLowerCase());
   });
                     
 

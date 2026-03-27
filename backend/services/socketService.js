@@ -5,29 +5,32 @@ const handleVideoCallEvents = require("./video-call-events");
 const socketMiddleware = require("../middleware/socketMiddleware");
 
 // map to store online users -> userId socketId
-
 const onlineUsers = new Map();
+// map to store typing users -> userId coversation:boolean
 const typingUsers = new Map();
 
 const initilizeSocket = (server) => {
   const io = new Server(server, {
     cors: {
-      origi: process.env.FRONTEND_URL,
+      origin: process.env.FRONTEND_URL,
       credentials: true,
       method: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     },
-    pingTimeout: 60000,
+    pingTimeout: 60000, //Disconnect inactive user or sockets after 60 s
   });
 
   io.use(socketMiddleware)
   
 
   io.on("connection", (socket) => {
+    console.log(`User Connected ${socket.id}`)
     let userId = null;
 
     socket.on("user_connected", async (connectingUserId) => {
       try {
+
         userId = connectingUserId;
+        socket.userId = userId
         onlineUsers.set(userId, socket.id);
         socket.join(userId);
 
@@ -40,13 +43,7 @@ const initilizeSocket = (server) => {
         io.emit("user_status", {
           userId,
           isOnline: true,
-          lastSeen: new Date(),
         });
-
-        // 2. FIX: Send the CURRENT online list to the user who just joined
-        // Convert the Map keys (userIds) to an array or object
-        const currentOnlineIds = Array.from(onlineUsers.keys());
-        socket.emit("online_users_list", currentOnlineIds);
 
       } catch (error) {
         console.error("Error handling user connection", error);
@@ -62,7 +59,7 @@ const initilizeSocket = (server) => {
       });
     });
 
-    // Forword message to resever
+    // Forword message to receiver
     socket.on("send_message", async (message) => {
       try {
         const receiverSocketId = onlineUsers.get(message.receiver?._id);
@@ -76,7 +73,7 @@ const initilizeSocket = (server) => {
     });
 
     // Update message as read and notify sender
-    socket.on("message_read", async (messageIds, senderId) => {
+    socket.on("message_read", async ({messageIds, senderId}) => {
       try {
         await Message.updateMany(
           {
@@ -99,7 +96,7 @@ const initilizeSocket = (server) => {
       }
     });
 
-    // handle typing status event and auto-stop
+    // handle typing start event and auto-stop
     socket.on("typing_start", ({ conversationId, receiverId }) => {
       if (!userId || !conversationId || !receiverId) return;
 
@@ -131,6 +128,7 @@ const initilizeSocket = (server) => {
       });
     });
 
+    // manually typing stop
     socket.on("typing_stop", ({ conversationId, receiverId }) => {
       if (!userId || !conversationId || !receiverId) return;
 
@@ -154,50 +152,47 @@ const initilizeSocket = (server) => {
     });
 
     // Add or update reaction on a message
-    socket.on("add_reaction", async (data) => {
+    socket.on("add_reaction", async ({ messageId, emoji, userId, reactionUserId }) => {
       try {
-        const { messageId, emoji, userId } = data; // Destructure the incoming data
 
         const message = await Message.findById(messageId);
         if (!message) return;
 
-        // 1. Check if a reaction from this sender already exists
-        // We use ?.toString() to safely check the ID
-        const existingIndex = message.reaction.findIndex(
-          (r) => r.sender && r.sender.toString() === userId.toString(),
+        const existingIndex = message.reactions.findIndex(
+          (r) => r.user && r.user.toString() === reactionUserId,
         );
 
         if (existingIndex > -1) {
           // Toggle logic
-          if (message.reaction[existingIndex].emoji === emoji) {
-            message.reaction.splice(existingIndex, 1);
+          if (message.reactions[existingIndex].emoji === emoji) {
+            message.reactions.splice(existingIndex, 1);
           } else {
-            message.reaction[existingIndex].emoji = emoji;
+            message.reactions[existingIndex].emoji = emoji;
           }
         } else {
-          message.reaction.push({
-            sender: userId, // <--- Use 'sender' here!
-            emoji: emoji,
+          message.reactions.push({
+           user:reactionUserId,emoji
           });
         }
 
         await message.save();
 
-        const populatedMessage = await Message.findById(messageId).populate(
-          "reaction.sender",
-          "username profilePicture",
-        );
+        const populatedMessage = await Message.findById(message?._id)
+        .populate("sender", "username profilePicture")
+        .populate("receiver", "username profilePicture")
+        .populate("reactions.user", "username");
+
         const reactionUpdated = {
           messageId: populatedMessage._id.toString(),
-          reaction: populatedMessage.reaction,
+          reactions: populatedMessage.reactions,
         };
 
         // Get the socket IDs for both users
         const senderSocket = onlineUsers.get(
-          populatedMessage.sender._id.toString(),
+          populatedMessage.sender?._id.toString(),
         );
         const receiverSocket = onlineUsers.get(
-          populatedMessage.receiver._id.toString(),
+          populatedMessage.receiver?._id.toString(),
         );
 
         // Send to both parties
@@ -212,6 +207,7 @@ const initilizeSocket = (server) => {
       }
     });
 
+    // handle video call evenst
     handleVideoCallEvents(socket, io, onlineUsers);
 
     const handleDisconnected = async () => {
@@ -221,7 +217,7 @@ const initilizeSocket = (server) => {
         if (typingUsers.has(userId)) {
           const userTyping = typingUsers.get(userId);
           Object.keys(userTyping).forEach((key) => {
-            if (key.endsWith("-timeout")) clearTimeout(userTyping[key]);
+            if (key.endsWith("_timeout")) clearTimeout(userTyping[key]);
           });
           typingUsers.delete(userId);
         }
@@ -237,13 +233,14 @@ const initilizeSocket = (server) => {
         });
 
         socket.leave(userId);
+        console.log(`User ${userId} disconnected`)
       } catch (error) {
         console.error("Error handling disconnection", error);
       }
     };
     socket.on("disconnect", handleDisconnected);
   });
-
+  // attach the online user map to the socket server for exteral use
   io.socketUserMap = onlineUsers;
   return io;
 };

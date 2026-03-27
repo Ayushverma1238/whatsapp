@@ -1,11 +1,14 @@
 import axios from 'axios'
-const apiUrl = `${import.meta.env.VITE_API_URL}/api`
+
+const base = import.meta.env.VITE_API_URL.replace(/\/$/, ""); // Remove trailing slash if exists
+const apiUrl = `${base}/api`;
+
 
 const getToken = () => localStorage.getItem('auth_token')
 
 const axiosInstance = axios.create({
     baseURL: apiUrl,
-    withCredentials: false 
+    // withCredentials: true 
 })
 
 axiosInstance.interceptors.request.use(

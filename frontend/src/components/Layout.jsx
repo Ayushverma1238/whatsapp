@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import useLayoutStore from "../store/layoutStore";
 import { useLocation } from "react-router-dom";
+
 import SideBar from "./SideBar";
 import { AnimatePresence, motion } from "framer-motion";
 import ChatWindow from "../pages/chatSection/ChatWindow";
@@ -17,6 +18,7 @@ const Layout = ({
   const setSelectedContact = useLayoutStore(
     (state) => state.setSelectedContact,
   );
+  const location = useLocation();
   const { theme, setTheme } = useThemeStore();
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
@@ -39,7 +41,7 @@ const Layout = ({
           {/* CHAT LIST: Show if Desktop OR if Mobile and NO contact is selected */}
           {(!isMobile || !selectedContact) && (
             <motion.div
-              key="ChatList"
+              key="chatList"
               initial={{ x: isMobile ? "-100%" : 0 }}
               animate={{ x: 0 }}
               exit={{ x: "-100%" }}

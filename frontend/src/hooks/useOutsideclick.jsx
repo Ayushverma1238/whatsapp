@@ -3,7 +3,6 @@ import { useEffect } from "react";
 const useOutsideClick = (ref, callback) => {
     useEffect(() => {
         const handleOutsideClick = (event) => {
-            // Fix: spelled 'contains' correctly
             if (ref.current && !ref.current.contains(event.target)) {
                 callback();
             }

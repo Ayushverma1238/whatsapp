@@ -7,36 +7,27 @@ const authRoute = require("./routes/authRoute.js");
 const statusRoute = require("./routes/statusRoute.js");
 const initilizeSocket = require("./services/socketService.js");
 const http = require("http");
+const cookieParser= require('cookie-parser')
+const bodyParser = require("body-parser")
 
 dotenv.config();
 
-const PORT = process.env.PORT || 5000;
-
+const PORT = process.env.PORT;
+const baseUri = process.env.FRONTEND_URL;
 const app = express();
 
-const allowedOrigins = [
-  'https://whatsapp-clone-taupe-nu.vercel.app', // Your main "Taupe" URL
-  /\.vercel\.app$/                             // Any URL ending in .vercel.app (Regex)
-];
+// cors 
+const corsOptions = {
+  origin: baseUri,
+  credentials:true
+}
+app.use(cors(corsOptions))
 
-app.use(cors({
-  origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps) 
-    // or if the origin is in our allowed list/regex
-    if (!origin || allowedOrigins.some(pattern => 
-      typeof pattern === 'string' ? pattern === origin : pattern.test(origin)
-    )) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  credentials: true
-}));
 
 // middleware
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser())
+app.use(bodyParser.urlencoded({ extended: true }));
 
 // database
 connectDb();
@@ -44,6 +35,7 @@ connectDb();
 const server = http.createServer(app);
 const io = initilizeSocket(server);
 
+// apply socket middleware before routes
 app.use((req, res, next) => {
   req.io = io;
   req.socketUserMap = io.socketUserMap;

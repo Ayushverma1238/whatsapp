@@ -9,7 +9,6 @@ import {
   FaPhoneSlash,
   FaTimes,
   FaVideo,
-  FaShieldAlt,
 } from "react-icons/fa";
 
 const VideoCallModel = ({ socket }) => {
@@ -25,7 +24,6 @@ const VideoCallModel = ({ socket }) => {
     isVideoEnabled,
     isAudioEnabled,
     peerConnection,
-    iceCandidateQueue,
     isCallModelOpen,
     callStatus,
     setIncomingCall,
@@ -50,53 +48,37 @@ const VideoCallModel = ({ socket }) => {
 
   const rtcConfiguration = {
     iceServers: [
-      {
-        urls: "stun:stun.1.google.com:19302",
-      },
-      {
-        urls: "stun:stun.1.google.com:19302",
-      },
-      {
-        urls: "stun:stun.1.google.com:19302",
-      },
+      { urls: "stun:stun.l.google.com:19302" },
+      { urls: "stun:stun1.l.google.com:19302" },
+      { urls: "stun:stun2.l.google.com:19302" },
     ],
   };
 
-
-
-  //   Memorize display the user info it is prevent the unnessacery render
+  // Fixed displayInfo logic to work during active calls
   const displayInfo = useMemo(() => {
-    // If there's an incoming call, use that; otherwise use the active/current call
-    const source = incomingCall && !isCallActive ? incomingCall : currentCall;
+    if (incomingCall) {
+      return {
+        name: incomingCall?.callerName,
+        avatar: incomingCall?.callerAvatar,
+      };
+    } else if (currentCall) {
+      return {
+        name: currentCall?.participantName,
+        avatar: currentCall?.participantAvatar,
+      };
+    }
+    return null;
+  }, [incomingCall, currentCall]);
 
-    return {
-      // Check all possible variations just in case
-      name:
-        source?.name ||
-        source?.callerName ||
-        source?.participantName ||
-        "Unknown User",
-
-      avatar:
-        source?.avatar ||
-        source?.callerAvatar ||
-        source?.participantAvatar ||
-        null,
-    };
-
-  }, [incomingCall, currentCall, isCallActive]);
-
-
-
-
-  // Connect detection
+  // Handle call status transitions
   useEffect(() => {
-    if (peerConnection && remoteStream) {
+    if (peerConnection && remoteStream && callStatus !== "connected") {
       setCallStatus("connected");
       setCallActive(true);
     }
-  }, [peerConnection, remoteStream, setCallStatus, setCallActive]);
+  }, [peerConnection, remoteStream, callStatus, setCallStatus, setCallActive]);
 
+  // Handle Stream assignment to video elements
   useEffect(() => {
     if (localStream && localVideoRef.current) {
       localVideoRef.current.srcObject = localStream;
@@ -109,8 +91,6 @@ const VideoCallModel = ({ socket }) => {
     }
   }, [remoteStream]);
 
-  // intilize media stream
-
   const initializeMedia = async (video = true) => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -120,19 +100,17 @@ const VideoCallModel = ({ socket }) => {
       setLocalStream(stream);
       return stream;
     } catch (error) {
-      console.error(error);
+      console.error("Media error", error);
       throw error;
     }
   };
 
   const createPeerConnection = (stream, role) => {
     const pc = new RTCPeerConnection(rtcConfiguration);
-    // add a local tracks immediatly
     if (stream) {
-      stream.getTracks().forEach((track) => {
-        pc.addTrack(track, stream);
-      });
+      stream.getTracks().forEach((track) => pc.addTrack(track, stream));
     }
+
     pc.onicecandidate = (event) => {
       if (event.candidate && socket) {
         const participantId =
@@ -147,19 +125,13 @@ const VideoCallModel = ({ socket }) => {
         }
       }
     };
+
     pc.ontrack = (event) => {
       if (event.streams && event.streams[0]) {
         setRemoteStream(event.streams[0]);
-      } else {
-        // If tracks arrive individually, we get the current stream from the store
-        const currentRemoteStream = useVideoCallStore.getState().remoteStream;
-        const stream = currentRemoteStream || new MediaStream();
-
-        stream.addTrack(event.track);
-        setRemoteStream(stream);
       }
     };
-    // connection monitor
+
     pc.onconnectionstatechange = () => {
       if (pc.connectionState === "failed") {
         setCallStatus("failed");
@@ -167,19 +139,10 @@ const VideoCallModel = ({ socket }) => {
       }
     };
 
-    // pc.oniceconnectionstatechange = () => {
-    //   console.log(`role: ${role}: ICE state `, pc.iceConnectionState);
-    // };
-
-    // pc.onsignalingstatechange = () => {
-    //   console.log(`${role} : Signaling state`, pc.signalingState);
-    // };
-
     setPeerConnection(pc);
     return pc;
   };
 
-  //   caller : Initilize call after acceptance
   const initializeCallerCall = async () => {
     try {
       setCallStatus("connecting");
@@ -196,13 +159,11 @@ const VideoCallModel = ({ socket }) => {
         callId: currentCall?.callId,
       });
     } catch (error) {
-      console.error("Caller Error", error);
       setCallStatus("failed");
       setTimeout(handleEndCall, 2000);
     }
   };
 
-  //   Receiver : Asnswer call after acceptance
   const handleAnswerCall = async () => {
     try {
       setCallStatus("connecting");
@@ -226,13 +187,12 @@ const VideoCallModel = ({ socket }) => {
 
       clearIncomingCall();
     } catch (error) {
-      console.error("receiver error", error);
       handleEndCall();
     }
   };
 
   const handleRejectCall = () => {
-    if (incomingCall) {
+    if (incomingCall && socket) {
       socket.emit("reject_call", {
         callerId: incomingCall?.callerId,
         callId: incomingCall?.callId,
@@ -241,135 +201,77 @@ const VideoCallModel = ({ socket }) => {
     endCall();
   };
 
-  const handleSenderRejectCall = () => {
-    // 1. Get IDs needed for the socket emit
-    const participantId = currentCall?.participantId || incomingCall?.callerId;
-    const callId = currentCall?.callId || incomingCall?.callId;
-
-    // 2. Tell the server to tell the receiver to stop ringing
-    if (participantId && callId && socket) {
-      socket.emit("end_call", {
-        callId: callId,
-        participantId: participantId,
-      });
-    }
-
-    // 3. Clean up local state (Stop camera, reset store)
-    endCall();
-  };
-
   const handleEndCall = () => {
-    // 1. Identify who to tell (the other person)
     const participantId = currentCall?.participantId || incomingCall?.callerId;
     const callId = currentCall?.callId || incomingCall?.callId;
 
-    // 2. Tell the server to tell them to hang up
-    if (participantId && callId) {
-      socket.emit("end_call", {
-        callId: callId,
-        participantId: participantId,
-      });
+    if (participantId && callId && socket) {
+      socket.emit("end_call", { callId, participantId });
     }
-
-    // 3. CRITICAL: Clean up YOUR own screen and camera
-    // Make sure 'endCall' is destructured from useVideoCallStore()
     endCall();
   };
 
-  //   socket event listeners
+  // --- Socket Event Listeners ---
   useEffect(() => {
-    if (!socket) {
-      return;
-    }
+    if (!socket) return;
 
     const handleCallAccepted = () => {
       if (currentCall) {
-        setTimeout(() => {
-          initializeCallerCall();
-        }, 500);
+        setTimeout(initializeCallerCall, 500);
       }
     };
 
     const handleCallRejected = () => {
       setCallStatus("rejected");
-      setTimeout(() => {
-        endCall();
-      }, 2000);
-    };
-
-    const handleCallEnded = () => {
-      endCall();
+      setTimeout(endCall, 2000);
     };
 
     const handleWebRTCOffer = async ({ offer, senderId, callId }) => {
-      // 1. Safety check (peerConnection is the object from useVideoCallStore)
-      if (!peerConnection) {
-        console.error("No peer connection available to handle offer");
-        return;
-      }
-
+      if (!peerConnection) return;
       try {
-        // 2. Set the remote description (Handshake step 1)
         await peerConnection.setRemoteDescription(
           new RTCSessionDescription(offer),
         );
         await processQueuedIceCandidates();
         const answer = await peerConnection.createAnswer();
         await peerConnection.setLocalDescription(answer);
-        socket.emit("webrtc_answer", {
-          answer,
-          receiverId: senderId,
-          callId,
-        });
-
+        socket.emit("webrtc_answer", { answer, receiverId: senderId, callId });
       } catch (error) {
-        console.error("Receiver offer error:", error);
-        // Optional: setCallStatus("failed") here if the handshake fails
+        console.error("Offer error:", error);
       }
     };
 
-    const handleWebRTCAnswer = async ({ answer, senderId, callId }) => {
-      if (!peerConnection) return;
-      if (peerConnection.signalingState === "closed") {
-        return;
-      }
-
+    const handleWebRTCAnswer = async ({ answer }) => {
+      if (!peerConnection || peerConnection.signalingState === "closed") return;
       try {
         await peerConnection.setRemoteDescription(
           new RTCSessionDescription(answer),
         );
-
         await processQueuedIceCandidates();
-        const receivers = peerConnection.getReceivers();
       } catch (error) {
-        console.error("caller answer error ", error);
+        console.error("Answer error:", error);
       }
     };
 
-    // Receiver ICE candidates
     const handleWebRTCIceCandidates = async ({ candidate }) => {
-      if (peerConnection && peerConnection.signalingState !== "closed") {
-        if (peerConnection.remoteDescription) {
-          try {
-            await peerConnection.addIceCandidate(
-              new RTCIceCandidate(candidate),
-            );
-          } catch (error) {
-            console.error("Failed to add ICE candidate:", error);
-          }
-        } else {
-          console.error("Remote description not ready, queueing candidate...");
-          addIceCandidate(candidate);
+      if (
+        peerConnection &&
+        peerConnection.signalingState !== "closed" &&
+        peerConnection.remoteDescription
+      ) {
+        try {
+          await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+        } catch (e) {
+          console.error(e);
         }
       } else {
-        console.error("PeerConnection not ready, queueing candidate...");
         addIceCandidate(candidate);
       }
     };
 
     socket.on("call_accepted", handleCallAccepted);
     socket.on("call_rejected", handleCallRejected);
-    socket.on("call_ended", handleCallEnded);
+    socket.on("call_ended", endCall);
     socket.on("webrtc_offer", handleWebRTCOffer);
     socket.on("webrtc_answer", handleWebRTCAnswer);
     socket.on("webrtc_ice_candidate", handleWebRTCIceCandidates);
@@ -377,31 +279,31 @@ const VideoCallModel = ({ socket }) => {
     return () => {
       socket.off("call_accepted", handleCallAccepted);
       socket.off("call_rejected", handleCallRejected);
-      socket.off("call_ended", handleCallEnded);
+      socket.off("call_ended", endCall);
       socket.off("webrtc_offer", handleWebRTCOffer);
       socket.off("webrtc_answer", handleWebRTCAnswer);
       socket.off("webrtc_ice_candidate", handleWebRTCIceCandidates);
     };
-  }, [socket, peerConnection, currentCall, incomingCall, user]);
+  }, [socket, peerConnection, currentCall, incomingCall]);
 
   if (!isCallModelOpen && !incomingCall) return null;
 
   const shouldShowActiveCall =
-    isCallActive || callStatus === "calling" || callStatus === "connecting";
+    isCallActive || ["calling", "connecting", "connected"].includes(callStatus);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black75">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75">
       <div
         className={`relative w-full h-full max-w-4xl max-h-3xl rounded-lg overflow-hidden ${theme === "dark" ? "bg-gray-900" : "bg-white"}`}
       >
-        {/* Incoming call ui */}
+        {/* Incoming Call UI */}
         {incomingCall && !isCallActive && (
           <div className="flex flex-col items-center justify-center h-full p-8">
             <div className="text-center mb-8">
               <div className="w-32 h-32 rounded-full bg-gray-300 mx-auto mb-4 overflow-hidden">
                 <img
                   className="w-full h-full object-cover"
-                  src={displayInfo?.avatar}
+                  src={displayInfo?.avatar || null}
                   alt={displayInfo?.name}
                 />
               </div>
@@ -416,16 +318,16 @@ const VideoCallModel = ({ socket }) => {
                 Incoming {callType} call...
               </p>
             </div>
-            <div className="flex space-x-4">
+            <div className="flex space-x-6">
               <button
                 onClick={handleRejectCall}
-                className="w-16 h-16 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center text-white transition-colors"
+                className="w-16 h-16 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center text-white"
               >
                 <FaPhoneSlash className="w-6 h-6" />
               </button>
               <button
                 onClick={handleAnswerCall}
-                className="w-16 h-16 bg-green-500 hover:bg-green-600 rounded-full flex items-center justify-center text-white transition-colors"
+                className="w-16 h-16 bg-green-500 hover:bg-green-600 rounded-full flex items-center justify-center text-white"
               >
                 <FaVideo className="w-6 h-6" />
               </button>
@@ -433,8 +335,7 @@ const VideoCallModel = ({ socket }) => {
           </div>
         )}
 
-        {/* Active call ui */}
-
+        {/* Active Call UI */}
         {shouldShowActiveCall && (
           <div className="relative w-full h-full">
             {callType === "video" && (
@@ -443,16 +344,16 @@ const VideoCallModel = ({ socket }) => {
                 autoPlay
                 playsInline
                 className={`w-full h-full object-cover bg-gray-800 ${remoteStream ? "block" : "hidden"}`}
-                src=""
+                src={null} // Fixed: null instead of ""
               />
             )}
 
-            {(!remoteStream || callType !== "connected") && (
+            {(!remoteStream || callType !== "video") && (
               <div className="w-full h-full bg-gray-800 flex items-center justify-center">
                 <div className="text-center">
                   <div className="w-32 h-32 rounded-full bg-gray-600 mx-auto mb-4 overflow-hidden">
                     <img
-                      src={displayInfo?.avatar}
+                      src={displayInfo?.avatar || null}
                       alt={displayInfo?.name}
                       className="w-full h-full object-cover"
                     />
@@ -460,18 +361,13 @@ const VideoCallModel = ({ socket }) => {
                   <p className="text-white text-xl">
                     {callStatus === "calling"
                       ? `Calling ${displayInfo?.name}...`
-                      : callStatus === "connecting"
-                        ? "Connecting..."
-                        : callStatus === "connected"
-                          ? displayInfo?.name
-                          : callStatus === "failed"
-                            ? "Connection Failed"
-                            : displayInfo?.name}
+                      : displayInfo?.name}
                   </p>
                 </div>
               </div>
             )}
-            {/* Local video picture in picture */}
+
+            {/* Local Video Overlay */}
             {callType === "video" && localStream && (
               <div className="absolute top-4 right-4 w-48 h-36 bg-gray-800 rounded-lg overflow-hidden border-2 border-white">
                 <video
@@ -480,69 +376,39 @@ const VideoCallModel = ({ socket }) => {
                   playsInline
                   muted
                   className="w-full h-full object-cover"
+                  src={null}
                 />
               </div>
             )}
-            {/* Call status */}
-            <div className="absolute top-4 left-4">
-              <div
-                className={`px-4 py-2 rounded-full ${theme === "dark" ? "bg-gray-800/75" : "bg-white/75"} `}
-              >
-                <p
-                  className={`text-sm ${theme === "dark" ? "text-white" : "text-black"}`}
-                >
-                  {callStatus === "connected" ? "Connected" : callStatus}
-                </p>
-              </div>
-            </div>
 
-            {/* Call controls */}
-            <div className="absolute left-1/2 bottom-8 transform -translate-x-1/2">
-              <div className="flex space-x-4">
-                {callType === "video" && (
-                  <button
-                    onClick={toggleVideo}
-                    className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${isVideoEnabled ? "bg-gray-600 hover:bg-gray-700 text-white" : "bg-red-500 hover:bg-red-6000 text-white"} `}
-                  >
-                    {isVideoEnabled ? (
-                      <FaVideo className="w-5 h-5" />
-                    ) : (
-                      <FaVideoSlash className="w-5 h-5" />
-                    )}
-                  </button>
-                )}
-                {callType === "video" && (
-                  <button
-                    onClick={toggleAudio}
-                    className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${isAudioEnabled ? "bg-gray-600 hover:bg-gray-700 text-white" : "bg-red-500 hover:bg-red-6000 text-white"} `}
-                  >
-                    {isAudioEnabled ? (
-                      <FaMicrophone className="w-5 h-5" />
-                    ) : (
-                      <FaMicrophoneSlash className="w-5 h-5" />
-                    )}
-                  </button>
-                )}
+            {/* Controls */}
+            <div className="absolute left-1/2 bottom-8 transform -translate-x-1/2 flex space-x-4">
+              {callType === "video" && (
                 <button
-                  onClick={handleEndCall}
-                  className="w-12 h-12 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center text-white transition-colors"
+                  onClick={toggleVideo}
+                  className={`w-12 h-12 rounded-full flex items-center justify-center ${isVideoEnabled ? "bg-gray-600" : "bg-red-500"}`}
                 >
-                  <FaPhoneSlash className="w-5 h-5" />
+                  {isVideoEnabled ? <FaVideo /> : <FaVideoSlash />}
                 </button>
-              </div>
+              )}
+              <button
+                onClick={toggleAudio}
+                className={`w-12 h-12 rounded-full flex items-center justify-center ${isAudioEnabled ? "bg-gray-600" : "bg-red-500"}`}
+              >
+                {isAudioEnabled ? <FaMicrophone /> : <FaMicrophoneSlash />}
+              </button>
+              <button
+                onClick={handleEndCall}
+                className="w-12 h-12 bg-red-500 rounded-full flex items-center justify-center text-white"
+              >
+                <FaPhoneSlash />
+              </button>
             </div>
           </div>
-        )}
-        {callStatus === "calling" && (
-          <button
-            onClick={handleEndCall}
-            className=" absolute top-4 right-4  w-16 h-16 bg-gray-600 hover:bg-gray-700 rounded-full flex items-center justify-center text-white transition-colors"
-          >
-            <FaTimes className="w-5 h-5" />
-          </button>
         )}
       </div>
     </div>
   );
 };
+
 export default VideoCallModel;

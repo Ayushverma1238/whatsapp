@@ -1,10 +1,11 @@
 const handleVideoCallEvents = (socket, io, onlineUsers) => {
   
   // 1. INITIATE CALL
-  socket.on("initiate_call", ({ callerId, receiverId, callType, callerInfo, callId }) => {
+  socket.on("initiate_call", ({ callerId, receiverId, callType, callerInfo }) => {
     const receiverSocketId = onlineUsers.get(receiverId);
     if (receiverSocketId) {
       // Use the callId passed from frontend for consistency
+      const callId = `${callerId}-${receiverId}-${Date.now()}`
       io.to(receiverSocketId).emit("incoming_call", {
         callerId,
         callerName: callerInfo.username,
@@ -13,6 +14,7 @@ const handleVideoCallEvents = (socket, io, onlineUsers) => {
         callType,
       });
     } else {
+      console.log(`Server: Receiver ${receiverId} is offline`)
       socket.emit("call_failed", { reason: "user is offline" });
     }
   });
@@ -22,10 +24,12 @@ const handleVideoCallEvents = (socket, io, onlineUsers) => {
     const callerSocketId = onlineUsers.get(callerId);
     if (callerSocketId) {
       io.to(callerSocketId).emit("call_accepted", {
-        receiverName: receiverInfo.username,
-        receiverAvatar: receiverInfo.profilePicture,
+        callerName: receiverInfo.username,
+        callerAvatar: receiverInfo.profilePicture,
         callId,
       });
+    }else{
+      console.log(`Server: caller ${callerId} not found`)
     }
   });
 
@@ -53,9 +57,12 @@ const handleVideoCallEvents = (socket, io, onlineUsers) => {
     if (receiverSocketId) {
       io.to(receiverSocketId).emit("webrtc_offer", {
         offer,
-        senderId: Array.from(onlineUsers.keys()).find(key => onlineUsers.get(key) === socket.id),
+        senderId:socket.userId,
         callId,
       });
+      console.log(`server offer forwerded to ${receiverId}`)
+    }else{
+      console.log(`server offer not forwarded `)
     }
   });
 
@@ -65,9 +72,12 @@ const handleVideoCallEvents = (socket, io, onlineUsers) => {
     if (receiverSocketId) {
       io.to(receiverSocketId).emit("webrtc_answer", {
         answer,
-        senderId: Array.from(onlineUsers.keys()).find(key => onlineUsers.get(key) === socket.id),
+        senderId: socket.userId,
         callId,
       });
+      console.log(`server answer forwerded to ${receiverId}`)
+    }else{
+      console.log(`server ${receiverId} not found the answer`)
     }
   });
 
@@ -77,9 +87,12 @@ const handleVideoCallEvents = (socket, io, onlineUsers) => {
     if (receiverSocketId) {
       io.to(receiverSocketId).emit("webrtc_ice_candidate", {
         candidate,
-        senderId: Array.from(onlineUsers.keys()).find(key => onlineUsers.get(key) === socket.id),
+        senderId: socket.userId,
         callId,
       });
+    }else{
+      console.log(`Server: receiver ${receiverId} not found the ICE candidate`);
+      
     }
   });
 };

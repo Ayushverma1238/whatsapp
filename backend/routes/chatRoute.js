@@ -1,11 +1,10 @@
 const express = require("express")
 const chatController = require("../controllers/chatController")
-const authMiddleware = require("../middleware/authMiddleware").default
+const authMiddleware = require("../middleware/authMiddleware")
 const {multerMiddleware} = require("../config/cloudinaryConfig")
 const router = express.Router()
 // const {updateProfile} = require("../controllers/chatControllers")
 
-console.log(authMiddleware)
 
 router.post('/send-message', authMiddleware,multerMiddleware, chatController.sendMessage);
 

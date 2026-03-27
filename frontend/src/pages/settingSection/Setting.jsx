@@ -55,7 +55,7 @@ const Setting = () => {
               <div className={`w-14 h-14 border hover:border-2 overflow-hidden rounded-full border-gray-900 shadow-lg ${theme === 'dark' ? 'hover:shadow-gray-300': 'hover:shadow-gray-700'}`}>
 
               <img
-                src={user.profilePicture}
+                src={user?.profilePicture}
                 alt="profilepic"
                 className="w-14  h-14 rounded-full"
                 />

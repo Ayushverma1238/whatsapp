@@ -9,21 +9,41 @@ import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import useThemeStore from "../../store/themeStore";
 import { motion } from "framer-motion";
-import { FaArrowLeft, FaChevronDown, FaPlus, FaUser, FaWhatsapp } from "react-icons/fa";
+import {
+  FaArrowLeft,
+  FaChevronDown,
+  FaPlus,
+  FaUser,
+  FaWhatsapp,
+} from "react-icons/fa";
 import Spinner from "../../utils/Spinner";
 import { toast } from "react-toastify";
 // import { sendOtp, verifyOtp, updateUserProfile } from "../../api/authApi";
-import { sendOtp, verifyOtp, updateUserProfile } from "../../services/user_services"
+import {
+  sendOtp,
+  verifyOtp,
+  updateUserProfile,
+} from "../../services/user_services";
 
 const loginValidationSchema = yup
   .object()
   .shape({
-    phoneNumber: yup.string().nullable().notRequired().matches(/^\d+$/, "Phone must be digits").transform((value, originaleValue) =>
-      originaleValue.trim() === "" ? null: value
-    ),
-    email: yup.string().nullable().notRequired().email("Invalid email").transform((value, originaleValue) =>
-      originaleValue.trim() ==="" ? null: value
-    )
+    phoneNumber: yup
+      .string()
+      .nullable()
+      .notRequired()
+      .matches(/^\d+$/, "Phone must be digits")
+      .transform((value, originaleValue) =>
+        originaleValue.trim() === "" ? null : value,
+      ),
+    email: yup
+      .string()
+      .nullable()
+      .notRequired()
+      .email("Invalid email")
+      .transform((value, originaleValue) =>
+        originaleValue.trim() === "" ? null : value,
+      ),
   })
   .test(
     "at-least-one",
@@ -70,7 +90,6 @@ const Login = () => {
   const { theme, setTheme } = useThemeStore();
   const [loading, setLoading] = useState(false);
 
-
   const filterCountry = countries.filter(
     (country) =>
       country.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -79,11 +98,12 @@ const Login = () => {
 
   const {
     register: loginRegister,
-    formState: { errors: loginErrors },
     handleSubmit: handleLoginSubmit,
+    formState: { errors: loginErrors },
   } = useForm({
     resolver: yupResolver(loginValidationSchema),
   });
+
   const {
     handleSubmit: handleOtpSubmit,
     formState: { errors: otpErrors },
@@ -94,9 +114,9 @@ const Login = () => {
 
   const {
     register: profileRegister,
-    formState: { errors: profileError },
     handleSubmit: handleProfileSubmit,
-    watch
+    formState: { errors: profileError },
+    watch,
   } = useForm({
     resolver: yupResolver(profileValidationSchema),
   });
@@ -111,68 +131,73 @@ const Login = () => {
       ></div>
     </div>
   );
-const onLoginSubmit = async (data) => {
-  setLoading(true);
-  setError(null); // Clear previous errors
-  try {
-    let response;
-    
-    if (email?.trim()) {
-      // Sending OTP via Email
-      response = await sendOtp(null, null, email);
-      if (response.status === "success") {
-        toast.info("OTP sent to your email");
-        setUserPhoneData({ email });
-        setStep(2);
+
+  const onLoginSubmit = async () => {
+    setLoading(true);
+    setError(null); // Clear previous errors
+    try {
+      let response;
+
+      if (email?.trim()) {
+        // Sending OTP via Email
+        response = await sendOtp(null, null, email);
+        if (response.status === "success") {
+          toast.info("OTP sent to your email");
+          setUserPhoneData({ email });
+          setStep(2);
+        }
+      } else if (phoneNumber) {
+        // Sending OTP via Phone
+        response = await sendOtp(phoneNumber, selectedCountry.dialCode);
+        if (response.status === "success") {
+          toast.info("OTP sent to your mobile number");
+          setUserPhoneData({
+            phoneNumber,
+            phoneSuffix: selectedCountry.dialCode,
+          });
+          setStep(2);
+        }
+      } else {
+        toast.warning("Please enter an email or phone number");
       }
-    } else if (phoneNumber) {
-      // Sending OTP via Phone
-      response = await sendOtp(phoneNumber, selectedCountry.dialCode);
-      if (response.status === "success") {
-        toast.info("OTP sent to your mobile number");
-        setUserPhoneData({
-          phoneNumber,
-          phoneSuffix: selectedCountry.dialCode,
-        });
-        setStep(2);
-      }
-    } else {
-      toast.warning("Please enter an email or phone number");
+    } catch (error) {
+      console.error("Login Error:", error);
+      const msg =
+        error?.response?.data?.message || error.message || "Failed to send OTP";
+      setError(msg);
+      toast.error(msg);
+    } finally {
+      setLoading(false);
     }
-  } catch (error) {
-    console.error("Login Error:", error);
-    const msg = error?.response?.data?.message || error.message || "Failed to send OTP";
-    setError(msg);
-    toast.error(msg);
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   const onOtpSubmit = async () => {
-  try {
-    setLoading(true);
-    
-    if (!userPhoneData) {
-      throw new Error("Phone no or email data is missing");
-    }
+    try {
+      setLoading(true);
 
-    const otpString = otp.join("");
-    let response;
-    
-    if (userPhoneData?.email) {
-      response = await verifyOtp(null, null, otpString, userPhoneData.email);
-    } else {
-      response = await verifyOtp(
-        userPhoneData.phoneNumber,
-        userPhoneData.phoneSuffix,
-        otpString
-      );
-    }
+      if (!userPhoneData) {
+        throw new Error("Phone no or email data is missing");
+      }
+
+      const otpString = otp.join("");
+      let response;
+
+      if (userPhoneData?.email) {
+        response = await verifyOtp(null, null, otpString, userPhoneData.email);
+      } else {
+        response = await verifyOtp(
+          userPhoneData.phoneNumber,
+          userPhoneData.phoneSuffix,
+          otpString
+        );
+      }
       if (response.status === "success") {
         toast.success("OTP verify successfully");
+
         const token = response?.data?.token;
-        localStorage.setItem('auth_token', token)
+        localStorage.setItem("auth_token", token);
+
+
         const user = response.data?.user;
         if (user?.username && user?.profilePicture) {
           setUser(user);
@@ -219,6 +244,7 @@ const onLoginSubmit = async (data) => {
   };
 
   const onProfileSubmit = async (data) => {
+    setLoading(true);
     try {
       setLoading(true);
       const formData = new FormData();
@@ -262,7 +288,7 @@ const onLoginSubmit = async (data) => {
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
           transition={{
-            duration: 0.2,
+            duration: 0.5,
             type: "spring",
             stiffness: 260,
             damping: 20,
@@ -287,9 +313,9 @@ const onLoginSubmit = async (data) => {
             onSubmit={handleLoginSubmit(onLoginSubmit)}
           >
             <p
-              className={`text-center ${theme === "dark" ? "text-gray-200" : "text-gray-600"}`}
+              className={`text-center ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}
             >
-              Enter your phone no to receive otp
+              Enter your phone number to receive otp
             </p>
             <div className="relative">
               <div className="flex">
@@ -325,7 +351,7 @@ const onLoginSubmit = async (data) => {
                           name=""
                           id=""
                           placeholder="Search Countries..."
-                          className={`w-full px-2 py-1 border ${theme === "dark" ? "bg-gray-600 text-white border-gray-500" : "bg-white border-gray-300"} rounded-md text-sm focus:outline-none focus:ring-green-500 `}
+                          className={`w-full px-2 py-1 border ${theme === "dark" ? "bg-gray-600 text-white border-gray-500" : "bg-white border-gray-300 text-gray-900"} rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-green-500 `}
                         />
                       </div>
                       {filterCountry.map((country) => (
@@ -367,7 +393,7 @@ const onLoginSubmit = async (data) => {
 
               {loginErrors.phoneNumber && (
                 <p className="text-red-500 text-sm">
-                  {loginError.phoneNumber.message}
+                  {loginErrors.phoneNumber.message}
                 </p>
               )}
             </div>
@@ -393,9 +419,14 @@ const onLoginSubmit = async (data) => {
                 onChange={(e) => setEmail(e.target.value)}
                 className={`w-full bg-transparent px-4 py-1 
 ${theme === "dark" ? "text-white" : "text-black"} 
-focus:outline-none focus:ring-0 
-${loginErrors.email ? "border-red-500" : ""}`}
+focus:outline-none focus:ring-0
+${loginErrors.email ? "border-red-500" : ""} `}
               />
+              {loginErrors.email && (
+                <p className="text-red-500 text-sm">
+                  {loginErrors.email.message}
+                </p>
+              )}
             </div>
             {loginErrors.email && (
               <p className="text-red-500 text-sm">{loginError.email.message}</p>
@@ -411,10 +442,7 @@ ${loginErrors.email ? "border-red-500" : ""}`}
         )}
 
         {step === 2 && (
-          <form
-            onSubmit={handleOtpSubmit(onOtpSubmit)}
-            className="space-y-4"
-          >
+          <form onSubmit={handleOtpSubmit(onOtpSubmit)} className="space-y-4">
             <p
               className={`text-center ${
                 theme === "dark" ? "text-gray-300" : "text-gray-600"
@@ -461,49 +489,82 @@ ${loginErrors.email ? "border-red-500" : ""}`}
         )}
 
         {step === 3 && (
-          <form onSubmit={handleProfileSubmit(onProfileSubmit)} className ="space-y-4">
+          <form
+            onSubmit={handleProfileSubmit(onProfileSubmit)}
+            className="space-y-4"
+          >
             <div className="flex flex-col items-center mb-4">
               <div className="relative w-24 h-24 mb-2">
-                <img className="w-full h-full rounded-full object-cover" src={profilePicture || selectedAvatar} alt="profile Picture" />
-                <label htmlFor="profile-picture" className="absolute bottom-0 right-0 bg-green-500 text-white p-2 rounded-full cursor-pointer hover:bg-green-600 transition-all duration-300"><FaPlus className={`w-4 h-4`} /></label>
+                <img
+                  className="w-full h-full rounded-full object-cover"
+                  src={profilePicture || selectedAvatar}
+                  alt="profile Picture"
+                />
+                <label
+                  htmlFor="profile-picture"
+                  className="absolute bottom-0 right-0 bg-green-500 text-white p-2 rounded-full cursor-pointer hover:bg-green-600 transition-all duration-300"
+                >
+                  <FaPlus className={`w-5 h-5`} />
+                </label>
 
-                <input className="hidden" type="file" id="profile-picture" accept="image/*" onChange={handleFileChange} />
-
+                <input
+                  className="hidden"
+                  type="file"
+                  id="profile-picture"
+                  accept="image/*"
+                  onChange={handleFileChange}
+                />
               </div>
-              
-              <p className={`text-sm ${theme === 'dark' ? "text-gray-300" : "text-gray-500"} mb-2`}>Choose an avatar</p>
+
+              <p
+                className={`text-sm ${theme === "dark" ? "text-gray-300" : "text-gray-500"} mb-2`}
+              >
+                Choose an avatar
+              </p>
               <div className="flex flex-wrap justify-center gap-2">
-                {avatars.map((avatar, index) =>(
+                {avatars.map((avatar, index) => (
                   <img
                     onClick={() => setSelectedAvatar(avatar)}
-                  key={index} src={avatar} alt={`Avatar ${index +1}`}  className={`w-12 h-12 rounded-full cursor-pointer transition-all duration-300 ease-in-out transform hover:scale-110 ${selectedAvatar === avatar ? "ring-2 ring-green-500": ""} `}/>
-
+                    key={index}
+                    src={avatar}
+                    alt={`Avatar ${index + 1}`}
+                    className={`w-12 h-12 rounded-full cursor-pointer transition-all duration-300 ease-in-out transform hover:scale-110 ${selectedAvatar === avatar ? "ring-2 ring-green-500" : ""} `}
+                  />
                 ))}
               </div>
             </div>
 
-
             <div className="relative">
-              <FaUser className={`absolute left-3 top-1/2 transform -translate-y-1/2 ${theme === 'dark' ? "text-gray-400":'text-gray-600'}`} />
-                <input 
-                {...profileRegister('username')}
+              <FaUser
+                className={`absolute left-3 top-1/2 transform -translate-y-1/2 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}
+              />
+              <input
+                {...profileRegister("username")}
                 type="text"
                 placeholder="Username"
-                className={`w-full pl-10 pr-3 py-2 border ${theme === 'dark' ? 'bg-gray-700 border-gray-600 text-white' : "border-gray-300 text-black bg-white"} rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-lg`}
-                 />
-                 {profileError.username && (
-                  <p className="text-red-500 text-sm mt-1">{profileError.username.message}</p>
-                 )}
+                className={`w-full pl-10 pr-3 py-2 border ${theme === "dark" ? "bg-gray-700 border-gray-600 text-white" : "border-gray-300 bg-white text-black"} rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-lg`}
+              />
+              {profileError.username && (
+                <p className="text-red-500 text-sm mt-1">
+                  {profileError.username.message}
+                </p>
+              )}
             </div>
 
             <div className="flex items-center space-x-2">
-              <input {...profileRegister('agreed')}
-              className={`rounded ${theme === 'dark' ? 'text-green-500 bg-gray-700' : 'text-green-500'} focus:ring-1 focus:ring-gray-800`}
-              type="checkbox" />
-              <label htmlFor="terms" 
-              className={`text-sm ${theme === 'dark' ? "text-gray-300": 'text-gray-700'}`}
+              <input
+                {...profileRegister("agreed")}
+                className={`rounded ${theme === "dark" ? "text-green-500 bg-gray-700" : "text-green-500"} focus:ring-1 focus:ring-gray-500`}
+                type="checkbox"
+              />
+              <label
+                htmlFor="terms"
+                className={`text-sm ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}
               >
-                I agree to the {" "} <a className="text-blue-500 hover:underline" href="#">Term and Conditions</a>
+                I agree to the{" "}
+                <a className="text-blue-500 hover:underline" href="#">
+                  Term and Conditions
+                </a>
               </label>
 
               {profileError.agreed && (
@@ -512,15 +573,14 @@ ${loginErrors.email ? "border-red-500" : ""}`}
                 </p>
               )}
             </div>
-             <button
+            <button
               type="submit"
-              disabled ={!watch("agreed") || loading}
-              className={`w-full hover:bg-green-600 bg-green-500 transform hover:scale-105 flex items-center justify-center text-lg text-white py-3 px-4 font-bold rounded-md ${loading? "opacity-50 cursor-not-allowed": ""} transition-all duration-300 ease-in-out`}
+              disabled={!watch("agreed") || loading}
+              className={`w-full hover:bg-green-600 bg-green-500 transform hover:scale-105 flex items-center justify-center text-lg text-white py-3 px-4 font-bold rounded-md ${loading ? "opacity-50 cursor-not-allowed" : ""} transition-all duration-300 ease-in-out`}
             >
               {loading ? <Spinner /> : "Create Profile"}
             </button>
           </form>
-
         )}
       </motion.div>
     </div>

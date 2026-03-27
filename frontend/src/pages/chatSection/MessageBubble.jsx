@@ -59,7 +59,7 @@ const MessageBubble = ({
   return (
     <div className={`chat ${bubbleClass} py-2 `}>
       <div className={`${bubbleContentClass} relative group`} ref={messageRef}>
-        <div className="flex flex-col justify-center gap">
+        <div className="flex flex-col justify-center gap-2">
           {/* Message Content */}
           {message.contentType === "text" && (
             <p className="mr-2">{message.content}</p>
@@ -142,7 +142,7 @@ const MessageBubble = ({
                 </button>
               ))}
 
-              <div className="mx-1 h-5 w bg-gray-600"></div>
+              <div className="mx-1 h-5 bg-gray-600"></div>
 
               <button
                 className="hover:bg-[#ffffff1a] rounded-full p-1"
@@ -170,11 +170,11 @@ const MessageBubble = ({
               </div>
             </div>
           )}
-          {message.reaction && message.reaction.length > 0 && (
+          {message.reactions && message.reactions.length > 0 && (
             <div
               className={`absolute -bottom-5 mb-2 ${isUserMessage ? "right-2" : "left-2"} ${theme === "dark" ? "bg-[#2a3942]" : "bg-gray-200"} rounded-full px-2 shadow-md`}
             >
-              {message.reaction.map((reac, index) => (
+              {message.reactions.map((reac, index) => (
                 <span key={index} className="mr-1 mb-1">
                   {reac.emoji}
                 </span>
@@ -192,7 +192,7 @@ const MessageBubble = ({
                   if (message.contentType === "text") {
                     navigator.clipboard.writeText(message.content);
                   }
-                  setShowOptions(false);
+                  setShowOptions(!showOptions);
                 }}
                 className="flex items-center w-full px-4 py-2 gap-3 rounded-lg"
               >
@@ -203,7 +203,7 @@ const MessageBubble = ({
                 <button
                   onClick={() => {
                     deleteMessage(message?._id);
-                    setShowOptions(false);
+                    setShowOptions(!showOptions);
                   }}
                   className="flex items-center w-full px-4 py-2 gap-3 text-red-600 rounded-lg"
                 >

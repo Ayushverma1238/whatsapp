@@ -28,8 +28,8 @@ const StatusList = ({ contact, onPreview, theme }) => {
         </svg>
       </div>
       <div>
-        <p className="font-semibold">{contact?.username}</p>
-        <p className={`text-sm ${theme=== 'dark'? 'text-gray-400': 'text-gray-500'}`}>{formatTimestamp(contact.statuses[contact.statuses.length - 1].timestamp)} </p>
+        <p className="font-semibold">{contact?.name}</p>
+        <p className={`text-sm ${theme=== 'dark'? 'text-gray-400': 'text-gray-500'}`}>{formatTimestamp(contact.statuses[0].timestamp)} </p>
       </div>
     </div>
   );

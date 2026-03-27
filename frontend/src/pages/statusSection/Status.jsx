@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import useThemeStore from "../../store/themeStore";
 import useUserStore from "../../store/useUserStore";
 import useStatusStore from "../../store/useStatusStore";
@@ -43,8 +43,18 @@ const Status = () => {
     reset,
   } = useStatusStore();
 
-  const userStatuses = getUserStatuses(user?._id);
-  const otherStatuses = getOtherStatuses(user?._id);
+  // Inside Status.jsx component
+  const grouped = useMemo(() => getGroupedStatus(), [statuses]);
+
+  const userStatuses = useMemo(
+    () => grouped[user?._id] || null,
+    [grouped, user?._id],
+  );
+
+  const otherStatuses = useMemo(
+    () => Object.values(grouped).filter((c) => c.id !== user?._id),
+    [grouped, user?._id],
+  );
 
   useEffect(() => {
     fetchStatuses();
@@ -53,6 +63,10 @@ const Status = () => {
       cleanupSocket();
     };
   }, [user?._id]);
+
+  useEffect(() => {
+    return () => clearError();
+  }, []);
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
@@ -119,17 +133,17 @@ const Status = () => {
     setCurrentStatusIndex((prev) => Math.max(prev - 1, 0));
   };
 
-  const handleStatusPreview = (contact, statusIndex) => {
+  const handleStatusPreview = (contact, statusIndex = 0) => {
     setPreviewContact(contact);
     setCurrentStatusIndex(statusIndex);
     if (contact.statuses[statusIndex]) {
       handleViewStatus(contact.statuses[statusIndex].id);
     }
   };
+
   return (
     <Layout
       isStatusPreviewOpen={!!previewContact}
-      
       statusPreviewContent={
         previewContact && (
           <StatusPreview
@@ -157,7 +171,7 @@ const Status = () => {
         }`}
       >
         <div
-          className={`flex border-b justify-center items-center ${theme === "dark" ? "bg-[rgb(17,27,33)] border-gray-700 " : "bg-white border-gray-300"} p-4`}
+          className={`flex-1 border-b justify-center items-center ${theme === "dark" ? "bg-[rgb(17,27,33)] border-gray-700 " : "bg-white border-gray-300"} p-4`}
         >
           <h2 className="text-2xl font-bold">Status</h2>
         </div>
@@ -180,7 +194,7 @@ const Status = () => {
             <div
               onClick={() => {
                 userStatuses
-                  ? handleStatusPreview(userStatuses,currentStatusIndex)
+                  ? handleStatusPreview(userStatuses)
                   : setShowCreateModel(true);
               }}
               className="relative cursor-pointer"
@@ -198,9 +212,14 @@ const Status = () => {
                   >
                     {userStatuses.statuses.map((_, index) => {
                       const circumFerence = 2 * Math.PI * 48;
-                      const segmentLength =
-                        circumFerence / userStatuses.statuses.length;
+                      const totalStatuses = userStatuses.statuses.length;
+                      const segmentLength = circumFerence / totalStatuses;
+
+                      // FIX: Only show a gap if there's more than 1 status
+                      const gap = totalStatuses > 1 ? 5 : 0;
+
                       const offset = index * segmentLength;
+
                       return (
                         <circle
                           key={index}
@@ -210,7 +229,8 @@ const Status = () => {
                           fill="none"
                           stroke="#25D366"
                           strokeWidth="4"
-                          strokeDasharray={`${segmentLength - 5} 5`}
+                          // Use the dynamic gap here
+                          strokeDasharray={`${segmentLength - gap} ${gap}`}
                           strokeDashoffset={-offset}
                           transform={`rotate(-90 50 50)`}
                         />
@@ -279,7 +299,7 @@ const Status = () => {
               </button>
               <button
                 onClick={() => {
-                  handleStatusPreview(userStatuses,currentStatusIndex);
+                  handleStatusPreview(userStatuses, currentStatusIndex);
                   setShowOptions(false);
                 }}
                 className={`w-full text-left text-blue-500 py-2 hover:bg-gray-100 px-2 rounded `}
@@ -307,7 +327,7 @@ const Status = () => {
                 <React.Fragment key={contact?.id}>
                   <StatusList
                     contact={contact}
-                    onPreview={() => handleStatusPreview(contact,currentStatusIndex)}
+                    onPreview={() => handleStatusPreview(contact)}
                     theme={theme}
                   />
                   {index < otherStatuses.length - 1 && (
@@ -403,12 +423,13 @@ const Status = () => {
                 <div className="flex justify-end space-x-3">
                   <button
                     onClick={() => {
-                      setLoading(false)
+                      setLoading(false);
                       setShowCreateModel(false);
                       setNewStatus("");
                       setSelectedFile(null);
                       setFilePreview(null);
                     }}
+                    disabled={loading}
                     className="px-4 py-2 text-gray-500 hover:text-gray-700"
                   >
                     Cancle

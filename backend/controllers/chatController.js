@@ -7,6 +7,7 @@ exports.sendMessage = async (req, res) => {
   try {
     const { senderId, receiverId, content, messageStatus } = req.body;
     const file = req.file;
+    console.log(`Sender ID ${senderId} receiverId ${receiverId}`)
 
     const participants = [senderId, receiverId].sort();
 
@@ -65,11 +66,10 @@ exports.sendMessage = async (req, res) => {
       .populate("sender", "username profilePicture")
       .populate("receiver", "username profilePicture");
 
-    // emit socket event for real time
     if (req.io && req.socketUserMap) {
       const receiverSocketId = req.socketUserMap.get(receiverId);
       if (receiverSocketId) {
-        req.io.to(receiverSocketId).emit("received_message", populatedMessage);
+        req.io.to(receiverSocketId).emit("receive_message", populatedMessage);
         message.messageStatus = "delivered";
         await message.save();
       }
@@ -77,7 +77,7 @@ exports.sendMessage = async (req, res) => {
 
     return response(res, 200, "message send successfully", populatedMessage);
   } catch (error) {
-    console.log(error);
+    console.error(error);
     return response(res, 500, "Internal server error");
   }
 };
@@ -100,7 +100,7 @@ exports.getConversations = async (req, res) => {
 
     return response(res, 200, "get conversation successfully", conversation);
   } catch (error) {
-    console.log(error);
+    console.error(error);
     return response(res, 500, "Internal server error");
   }
 };
@@ -136,7 +136,7 @@ exports.getMessages = async (req, res) => {
     await conversation.save();
     return response(res, 200, "message retrived", messages);
   } catch (error) {
-    console.log(error);
+    console.error(error);
     return response(res, 500, "Internal server error");
   }
 };
@@ -145,7 +145,7 @@ exports.markAsRead = async (req, res) => {
   const { messageId } = req.body;
   const userId = req.user.userId;
   try {
-    let message = await Message.find({
+    let messages = await Message.find({
       _id: { $in: messageId },
       receiver: userId,
     });
@@ -160,7 +160,7 @@ exports.markAsRead = async (req, res) => {
 
     if (req.io && req.socketUserMap) {
       for(const message of messages){
-        const senderSocketId = req.socketUserMap(message.sender.toString());
+        const senderSocketId = req.socketUserMap.get(message.sender.toString());
         if(senderSocketId){
             const updatedMessage = {
                 _id:message._id,
@@ -172,9 +172,9 @@ exports.markAsRead = async (req, res) => {
       }
     }
 
-    return response(res, 200, "Messages mark as read", message);
+    return response(res, 200, "Messages mark as read", messages);
   } catch (error) {
-    console.log(error);
+    console.error(error);
     return response(res, 500, "Internal server error");
   }
 };
@@ -203,7 +203,7 @@ exports.deleteMessage = async (req, res) => {
     }
     return response(res, 200, "Message deleted successfully");
   } catch (error) {
-    console.log(error);
+    console.error(error);
     return response(res, 500, "Internal server error");
   }
 };

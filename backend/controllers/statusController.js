@@ -18,7 +18,6 @@ exports.createStatus = async (req, res) => {
         return response(res, 400, "failed to upload media");
       }
 
-      // FIX: Assign to mediaUrl, not imageOrVideoUrl
       mediaUrl = uploadFile.secure_url;
 
       if (file.mimetype.startsWith("image")) {
@@ -27,7 +26,6 @@ exports.createStatus = async (req, res) => {
         file.mimetype.startsWith("video") ||
         file.mimetype.endsWith("mp4")
       ) {
-        // Fix typo: meamtype -> mimetype
         finalContentType = "video";
       } else {
         return response(res, 400, "Unsupported file type");
@@ -67,7 +65,7 @@ exports.createStatus = async (req, res) => {
 
     return response(res, 200, "Status created successfully", populatedStatus);
   } catch (error) {
-    console.error("Backend Error:", error);
+    console.error("Status uploading error:", error);
     return response(res, 500, "Internal server error");
   }
 };
@@ -80,9 +78,9 @@ exports.getStatuses = async (req, res) => {
       .populate("viewers", "username profilePicture")
       .sort({ createdAt: -1 });
 
-    return response(res, 200, "Status retrive successfully", statuses);
+    return response(res, 200, "Status retrived successfully", statuses);
   } catch (error) {
-    console.log(error);
+    console.error("Get status error", error);
     return response(res, 500, "Internal server error");
   }
 };
@@ -92,49 +90,59 @@ exports.viewStatus = async (req, res) => {
   const userId = req.user.userId;
 
   try {
+    // 1. Status check karein
     const status = await Status.findById(statusId);
     if (!status) {
-      return response(res, 404, "Status not found");
+      return res.status(404).json({ message: "Status not found" });
     }
 
-    // Convert BSON IDs to strings for a reliable comparison
-    const viewerIds = status.viewers.map((id) => id.toString());
-
-    if (!viewerIds.includes(userId)) {
+    // 2. Agar user ne abhi tak view nahi kiya hai
+    if (!status.viewers.includes(userId)) {
       status.viewers.push(userId);
       await status.save();
 
-      // FIX: Store the result of the population in a variable
+      // 3. Updated data populate karein
       const populatedStatus = await Status.findById(statusId)
         .populate("user", "username profilePicture")
         .populate("viewers", "username profilePicture");
 
+      // 4. Socket Notification Logic (Safe checks ke saath)
       if (req.io && req.socketUserMap) {
-        // FIX: Access index [0] because your user field is an Array
-        const ownerId = Array.isArray(status.user)
-          ? status.user[0].toString()
-          : status.user.toString();
+        
+        // SAFE EXTRACTION: Check karein user array hai ya object
+        const userData = Array.isArray(populatedStatus.user) 
+          ? populatedStatus.user[0] 
+          : populatedStatus.user;
 
-        const statusOwnerSocketId = req.socketUserMap.get(ownerId);
+        // Owner ID nikalne ka sabse safe tarika
+        const ownerId = userData?._id || status.user; 
 
-        if (statusOwnerSocketId) {
-          const viewData = {
-            statusId,
-            viewerId: userId,
-            totalViewers: populatedStatus.viewers.length,
-            viewers: populatedStatus.viewers, // Now using the correct variable
-          };
+        if (ownerId) {
+          const statusOwnerSocketId = req.socketUserMap.get(ownerId.toString());
 
-          req.io.to(statusOwnerSocketId).emit("status_viewed", viewData);
-        } else {
+          if (statusOwnerSocketId) {
+            const viewData = {
+              statusId,
+              viewerId: userId,
+              totalViewers: populatedStatus.viewers.length,
+              viewers: populatedStatus.viewers,
+            };
+
+            req.io.to(statusOwnerSocketId).emit("status_viewed", viewData);
+          } else {
+            console.log("Status owner is not online, socket skipped.");
+          }
         }
       }
-    } 
+      
+      // Frontend ko updated status bhejein taaki UI refresh ho sake
+      return res.status(200).json(populatedStatus);
+    }
 
-    return response(res, 200, "Status viewed successfully");
+    return res.status(200).json({ message: "Status already viewed" });
   } catch (error) {
     console.error("View Status Error:", error);
-    return response(res, 500, "Internal server error");
+    return res.status(500).json({ message: "Internal server error" });
   }
 };
 
@@ -148,14 +156,13 @@ exports.deleteStatus = async (req, res) => {
       return response(res, 404, "Status not found");
     }
 
-    if (status.user[0].toString() !== userId) {
+    if (status.user.toString() !== userId) {
       return response(res, 403, "Not authorized to delete this status");
     }
 
     await status.deleteOne();
 
     if (req.io && req.socketUserMap) {
-      // Brodcast to all connected user
       for (const [connectedUserId, socketId] of req.socketUserMap) {
         if (connectedUserId !== userId) {
           req.io.to(socketId).emit("status_deleted", statusId);
@@ -164,7 +171,7 @@ exports.deleteStatus = async (req, res) => {
     }
     return response(res, 200, "Status deleted successfully");
   } catch (error) {
-    console.log(error);
+    console.error("Delete status error", error);
     return response(res, 500, "Internal server error");
   }
 };

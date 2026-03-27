@@ -18,8 +18,6 @@ import {
   FaTimes,
   FaVideo,
 } from "react-icons/fa";
-import { IoMdSearch } from "react-icons/io";
-import { BsThreeDotsVertical } from "react-icons/bs";
 import EmojiPicker from "emoji-picker-react";
 
 import MessageBubble from "./MessageBubble";
@@ -59,21 +57,18 @@ const ChatWindow = ({ selectedContact, setSelectedContact }) => {
 
   const socket = getSocket();
 
-  const onlineStatus = useChatStore((state) =>
-    state.onlineUsers.get(selectedContact?._id),
-  );
-  const online = onlineStatus?.isOnline;
-  const lastSeen = onlineStatus?.lastSeen;
+  // const onlineStatus = useChatStore((state) =>
+  //   state.onlineUsers.get(selectedContact?._id),
+  // );
+  const online = isUserOnline(selectedContact?._id)
+  const lastSeen= getUserLastSeen(selectedContact?._id);
+  const isTyping = isUserTyping(selectedContact?._id);
 
-  const isTyping = useChatStore((state) => {
-    if (!selectedContact?._id || !state.currentConversation) return false;
-    const typingSet = state.typingUsers.get(state.currentConversation);
-    return typingSet ? typingSet.has(selectedContact._id) : false;
-  });
+
   // Fetch messages when contact changes
   useEffect(() => {
     if (selectedContact?._id && conversations?.data?.length > 0) {
-      const conversation = conversations.data.find((conv) =>
+      const conversation = conversations?.data?.find((conv) =>
         conv.participants.some((p) => p._id === selectedContact._id),
       );
 
@@ -81,15 +76,21 @@ const ChatWindow = ({ selectedContact, setSelectedContact }) => {
         fetchMessages(conversation._id);
       }
     }
-  }, [selectedContact, conversations, fetchMessages]);
+  }, [selectedContact, conversations]);
 
   useEffect(() => {
     fetchConversations();
-  }, [fetchConversations]);
+  }, []);
 
   const scrollToBottom = () => {
-    messageEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    messageEndRef.current?.scrollIntoView({ behavior: "auto" });
   };
+
+    useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+
   // need updation
   const handleVideoCall = () => {
     if (selectedContact && online) {
@@ -107,18 +108,12 @@ const ChatWindow = ({ selectedContact, setSelectedContact }) => {
     }
   };
 
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
 
   const handleReaction = async (messageId, emoji) => {
     try {
-      // 1. Call the store action
+     
       await addReaction(messageId, emoji);
-
-      // 2. (Optional) Close the emoji picker if you have one open for that specific message
-      setShowEmojiPicker(false);
-
+      console.log(`Reaction ${emoji} added to message ${messageId}`);
     } catch (error) {
       console.error("Failed to add reaction:", error);
     }
@@ -126,7 +121,7 @@ const ChatWindow = ({ selectedContact, setSelectedContact }) => {
   // Typing logic
   useEffect(() => {
     if (messages && selectedContact) {
-      startTyping(selectedContact._id);
+      startTyping(selectedContact?._id);
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
 
       typingTimeoutRef.current = setTimeout(() => {
@@ -140,9 +135,9 @@ const ChatWindow = ({ selectedContact, setSelectedContact }) => {
     const file = e.target.files[0];
     if (file) {
       setSelectedFile(file);
+      setShowFileMenu(false);
       if (file.type.startsWith("image/") || file.type.startsWith("video/")) {
         setFilePreview(URL.createObjectURL(file));
-        setShowFileMenu(false);
       }
     }
   };
@@ -161,6 +156,8 @@ const ChatWindow = ({ selectedContact, setSelectedContact }) => {
       await sendMessage(formData);
 
       setMessage("");
+      setFilePreview(null);
+      setShowFileMenu(false);
       setSelectedFile(null);
     } catch (error) {
       console.error("Failed to send message", error);
@@ -176,9 +173,9 @@ const ChatWindow = ({ selectedContact, setSelectedContact }) => {
         : format(date, "EEEE, MMMM d");
 
     return (
-      <div className="flex justify-center my-4 w-full">
+      <div className="flex justify-center my-4">
         <span
-          className={`px-4 py-1 rounded-md text-xs font-medium ${theme === "dark" ? "bg-[#1f2225] text-gray-400" : "bg-white text-gray-500 shadow-sm"}`}
+          className={`px-4 py-1 rounded-full text-sm  ${theme === "dark" ? "bg-[#1f2225] text-gray-400" : "bg-white text-gray-500 shadow-sm"}`}
         >
           {dateString}
         </span>
@@ -201,12 +198,18 @@ const ChatWindow = ({ selectedContact, setSelectedContact }) => {
   };
 
   // Group messages by date
-  const groupMessages = Array.isArray(messages)
+  const groupedMessages = Array.isArray(messages)
     ? messages.reduce((acc, msg) => {
         if (!msg.createdAt) return acc;
-        const dateKey = format(new Date(msg.createdAt), "yyyy-MM-dd");
+        const date = new Date(msg.createdAt);
+        if(isValidate(date)){
+          const dateKey = format(date, "yyyy-MM-dd");
         if (!acc[dateKey]) acc[dateKey] = [];
         acc[dateKey].push(msg);
+      }else{
+        console.error("invalid date for message ", message);
+      }
+        
         return acc;
       }, {})
     : {};
@@ -226,7 +229,7 @@ const ChatWindow = ({ selectedContact, setSelectedContact }) => {
           <p
             className={`mb-6 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}
           >
-            Choose contact from the lest on the left side to begin messaging
+            Choose a contact from the list on the left side to begin messaging
           </p>
           <p
             className={`mt-8 ${theme === "dark" ? "text-gray-400" : "text-gray-600"} text-sm flex items-center justify-center gap-2`}
@@ -241,7 +244,7 @@ const ChatWindow = ({ selectedContact, setSelectedContact }) => {
 
   return (
     <>
-      <div className="flex-1 h-screen w-full flex flex-col relative">
+      <div className="flex-1 h-screen w-full flex flex-col ">
         {/* Header */}
         <div
           className={`p-4 flex items-center   ${theme === "dark" ? "bg-[#303430]  text-white" : "bg-[rgb(239,242,245)] text-gray-600"}`}
@@ -250,15 +253,15 @@ const ChatWindow = ({ selectedContact, setSelectedContact }) => {
             onClick={() => setSelectedContact(null)}
             className="mr-2 focus:outline-none"
           >
-            <FaArrowLeft />
+            <FaArrowLeft className="h-6 w-6" />
           </button>
           <img
             src={selectedContact?.profilePicture}
             className="h-10 w-10 rounded-full"
-            alt="avatar"
+            alt={selectedContact?.username}
           />
           <div className="ml-3 grow">
-            <h2 className="font-semibold">{selectedContact?.username}</h2>
+            <h2 className="font-semibold text-start">{selectedContact?.username}</h2>
             {isTyping ? (
               <div>Typing...</div>
             ):(
@@ -268,7 +271,7 @@ const ChatWindow = ({ selectedContact, setSelectedContact }) => {
             )}
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center space-x-4">
             <button
               className="focus:outline-none"
               onClick={handleVideoCall}
@@ -287,18 +290,12 @@ const ChatWindow = ({ selectedContact, setSelectedContact }) => {
         <div
           className={`flex-1 overflow-y-auto p-4 ${theme === "dark" ? "bg-[#191a1a]" : "bg-[rgb(241,236,229)]"}`}
         >
-          {Object.entries(groupMessages).map(([date, msgs]) => {
+          {Object.entries(groupedMessages).map(([date, msgs]) => {
             return (
               <React.Fragment key={date}>
                 {renderDateSeperator(new Date(date))}
                 {msgs
-                  .filter((msg) => {
-                    const msgConvId = msg.conversation?._id || msg.conversation;
-                    const selectedId =
-                      selectedContact?.conversation?._id ||
-                      selectedContact?._id;
-                    return msgConvId?.toString() === selectedId?.toString();
-                  })
+                  .filter((msg) => msg.conversation === selectedContact?.conversation?._id)
                   .map((msg1) => {
                     return (
                       <MessageBubble
@@ -330,7 +327,7 @@ const ChatWindow = ({ selectedContact, setSelectedContact }) => {
               <img
                 src={filePreview}
                 alt="file-preview"
-                className="w-80 object-cover shadow-lg mx-auto"
+                className="w-80 object-cover rounded shadow-lg mx-auto"
               />
             )}
 

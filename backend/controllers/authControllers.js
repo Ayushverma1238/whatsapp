@@ -22,7 +22,7 @@ const sendOtp = async (req, res) => {
       }
 
       user.emailOtp = otp;
-      user.emailOtpExpire = expiry;
+      user.emailOtpExpiry = expiry;
       await user.save();
       await sendOtpToEmail(email, otp);
       return response(res, 200, "Otp send to your email", { email });
@@ -46,7 +46,7 @@ const sendOtp = async (req, res) => {
       phoneSuffix,
     });
   } catch (error) {
-    console.log(error);
+    console.error(error);
 
     return response(res, 500, "Internal server error");
   }
@@ -66,14 +66,14 @@ const verifyOtp = async (req, res) => {
       if (
         !user.emailOtp ||
         String(user.emailOtp) !== String(otp) ||
-        now > new Date(user.emailOtpExpire)
+        now > new Date(user.emailOtpExpiry)
       ) {
         return response(res, 400, "Invalid or Expired otp");
       }
 
       user.isVerified = true;
       user.emailOtp = null;
-      user.emailOtpExpire = null;
+      user.emailOtpExpiry = null;
       await user.save();
     } else {
       if (!phoneNumber || !phoneSuffix) {
@@ -93,7 +93,7 @@ const verifyOtp = async (req, res) => {
       await user.save();
     }
 
-    const token = generateToken(user);
+    const token = generateToken(user?._id);
     res.cookie("auth_token", token, {
       httpOnly: true,
       maxAge: 1000 * 60 * 60 * 24 * 365,
@@ -101,16 +101,15 @@ const verifyOtp = async (req, res) => {
 
     return response(res, 200, "Otp verified successfully", { token, user });
   } catch (error) {
-    console.log(error);
+    console.error(error);
 
     return response(res, 500, "Internal server error");
   }
 };
 
 const updateProfile = async (req, res) => {
-  // 1. Destructure profilePicture from req.body (for avatars)
   const { username, agreed, about, profilePicture } = req.body;
-  const userId = req.user._id;
+  const userId = req.user.userId;
 
   try {
     const user = await User.findById(userId);
@@ -119,14 +118,11 @@ const updateProfile = async (req, res) => {
       return response(res, 404, "User not found");
     }
 
-    // 2. Handle File Upload (Priority)
     if (req.file) {
       const uploadResult = await uploadFileToCloudinary(req.file);
-      user.profilePicture = uploadResult.secure_url;
+      user.profilePicture = uploadResult?.secure_url;
     } 
-    // 3. Handle Avatar Selection (Fallback)
     else if (profilePicture) {
-      // If no file was uploaded, check if an avatar URL was sent
       user.profilePicture = profilePicture;
     }
 
@@ -138,7 +134,7 @@ const updateProfile = async (req, res) => {
 
     return response(res, 200, "User profile updated successfully", user);
   } catch (error) {
-    console.log(error);
+    console.error(error);
     return response(res, 500, "Update profile error");
   }
 };
@@ -151,7 +147,7 @@ const logout = (req, res) => {
     });
     return response(res, 200, "User logout successfully");
   } catch (error) {
-    console.log(error);
+    console.error(error);
 
     return response(res, 500, "User logout error");
   }
@@ -170,7 +166,7 @@ const checkAuthenticate = async(req, res) =>{
     }
     return response(res, 200, "User retrived and allow to use whatsapp", user);
   } catch (error) {
-    console.log(error);
+    console.error(error);
     return response(res, 500, "Internal server error");
   }
 }
@@ -211,7 +207,7 @@ const getAllUsers = async (req, res) => {
       usersWithConversation
     );
   } catch (error) {
-    console.log(error);
+    console.error(error);
     return response(res, 500, "Internal server error");
   }
 };

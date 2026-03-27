@@ -6,7 +6,7 @@ import useLayoutStore from "../store/layoutStore";
 import { getAllUsers } from "../services/user_services";
 
 const HomePage = () => {
-  
+  const setSelectedContact = useLayoutStore((state) => state.setSelectedContact)
   const [allUsers, setallUsers] = useState([]);
   const getAllUser = async () => {
     try {
@@ -34,6 +34,7 @@ const HomePage = () => {
         >
           <ChatList
             contacts={allUsers}
+            setSelectedContact ={setSelectedContact}
            />
         </motion.div>
       </Layout>

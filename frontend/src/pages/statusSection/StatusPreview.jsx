@@ -57,13 +57,14 @@ const StatusPreview = ({
     }
   };
 
+  if(!currentStatus) return null;
   return (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.5 }}
       exit={{ opacity: 0 }}
-      style={{ backdropFilter: "blur(5px" }}
+      style={{ backdropFilter: "blur(5px)" }}
       onClick={onClose}
       className={`fixed inset-0 bg-black/50 w-full h-full z-50 flex items-center justify-center`}
     >
@@ -98,11 +99,11 @@ const StatusPreview = ({
             <div className="flex items-center space-x-3">
               <img
                 src={contact?.avatar}
-                alt={contact?.username}
+                alt={contact?.name}
                 className="w-10 h-10 rounded-full object-cover border-2 border-white"
               />
               <div>
-                <p className="text-white font-semibold">{contact?.username}</p>
+                <p className="text-white font-semibold">{contact?.name}</p>
                 <p className="text-gray-300 text-sm">
                   {formatTimestamp(currentStatus.timestamp)}
                 </p>
@@ -146,7 +147,7 @@ const StatusPreview = ({
 
           <button
             onClick={onClose}
-            className="absolute p-2 top-4 right-4 text-white bg-black/50 rounded-full hover:bg-black/70 transition-all z-10"
+            className="absolute p-3 top-4 right-4 text-white bg-black/50 rounded-full hover:bg-black/70 transition-all z-10"
           >
             <FaTimes className="w-5 h-5" />
           </button>

@@ -1,9 +1,9 @@
 const multer = require("multer");
 const cloudinary = require("cloudinary").v2;
 const fs = require("fs");
-require('dotenv').config(); // <--- ADD THIS LINE HERE
+require('dotenv').config(); 
 
-// Debugging: This will tell us if the key is actually reaching the file
+
 if (!process.env.CLOUDINARY_API_KEY) {
     console.error("FATAL ERROR: CLOUDINARY_API_KEY is missing from process.env");
 }
@@ -32,7 +32,6 @@ const uploadFileToCloudinary = (file) => {
             : cloudinary.uploader.upload;
 
         uploader(file.path, options, (error, result) => {
-            // Clean up local temp file
             if (fs.existsSync(file.path)) {
                 fs.unlink(file.path, (err) => {
                     if (err) console.error("FS Unlink Error:", err);
@@ -48,8 +47,7 @@ const uploadFileToCloudinary = (file) => {
     });
 };
 
-// Multer setup - ensure the 'upload/' directory exists or use /tmp
-const multerMiddleware = multer({ dest: 'upload/' }).single('media');
+const multerMiddleware = multer({ dest: 'uploads/' }).single('media');
 
 module.exports = {
     uploadFileToCloudinary,

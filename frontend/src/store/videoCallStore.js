@@ -9,6 +9,7 @@ const useVideoCallStore = create(
     incomingCall: null,
     isCallActive: false,
     callType: "video",
+
     localStream: null,
     remoteStream: null,
 
@@ -96,9 +97,9 @@ const useVideoCallStore = create(
       const { localStream, peerConnection } = get();
 
       if (localStream) {
-        localStream.getTracks().forEach((track) => {
-          track.stop();
-        });
+        localStream.getTracks().forEach((track) => 
+          track.stop()
+        );
       }
       if (peerConnection) {
         peerConnection.close();
